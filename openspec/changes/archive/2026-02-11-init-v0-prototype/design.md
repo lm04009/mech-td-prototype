@@ -26,6 +26,7 @@ We are building a **locked v0 prototype** to validate specific game design hypot
 - **Enemies:** Spawn from fixed portals, follow pre-authored lane paths.
 - **Towers:** Autonomous, built only at fixed sockets.
 - **Player:** Free-moving spatial actor, not lane-bound.
+- **Terminal:** The central base to defend. Destruction = Loss.
 
 ### 2. Active Player Combat
 - The player is a **continuous spatial actor**, not just a cursor.
