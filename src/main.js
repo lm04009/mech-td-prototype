@@ -18,8 +18,9 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // Game State
-const input = new InputHandler();
+const input = new InputHandler(canvas);
 const mech = new Mech(canvas.width / 2, canvas.height / 2);
+let projectiles = [];
 
 let lastTime = 0;
 
@@ -28,9 +29,22 @@ function gameLoop(timestamp) {
     const dt = (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
-    // Update
+    // Update Mech & Fire
     const movement = input.getMovementVector();
-    mech.update(dt, movement);
+    const newProjectile = mech.update(dt, movement, input.mouse, input.mouse);
+
+    if (newProjectile) {
+        projectiles.push(newProjectile);
+    }
+
+    // Update Projectiles
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.update(dt);
+        if (p.markedForDeletion) {
+            projectiles.splice(i, 1);
+        }
+    }
 
     // Render
     ctx.fillStyle = '#222';
@@ -39,13 +53,18 @@ function gameLoop(timestamp) {
     // Grid (Visual reference for movement)
     drawGrid(ctx);
 
+    // Draw Projectiles
+    projectiles.forEach(p => p.draw(ctx));
+
+    // Draw Mech
     mech.draw(ctx);
 
     // Debug Info
     ctx.fillStyle = '#fff';
     ctx.font = '12px Courier New';
-    ctx.fillText(`WASD to Move`, 10, 20);
+    ctx.fillText(`WASD to Move, Click to Fire`, 10, 20);
     ctx.fillText(`Pos: ${Math.round(mech.x)}, ${Math.round(mech.y)}`, 10, 35);
+    ctx.fillText(`Projectiles: ${projectiles.length}`, 10, 50);
 
     requestAnimationFrame(gameLoop);
 }
