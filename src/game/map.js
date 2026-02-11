@@ -25,29 +25,41 @@ export class GameMap {
     }
 
     setupTestLevel() {
-        // Create a central "arena" with walls
-        for (let x = 5; x < 15; x++) {
-            this.setTile(x, 5, TERRAIN.WALL);
-            this.setTile(x, 15, TERRAIN.WALL);
+        const cx = Math.floor(this.width / 2);
+        const cy = Math.floor(this.height / 2);
+
+        // 1. Clear Center (Safe Zone)
+        // (Default is Ground, so we just ensure we don't build here)
+
+        // 2. Build "Arena" Walls (Inner Ring)
+        const innerRadius = 8;
+        for (let x = cx - innerRadius; x <= cx + innerRadius; x++) {
+            this.setTile(x, cy - innerRadius, TERRAIN.WALL);
+            this.setTile(x, cy + innerRadius, TERRAIN.WALL);
         }
-        for (let y = 5; y < 15; y++) {
-            this.setTile(5, y, TERRAIN.WALL);
-            this.setTile(15, y, TERRAIN.WALL);
+        for (let y = cy - innerRadius; y <= cy + innerRadius; y++) {
+            this.setTile(cx - innerRadius, y, TERRAIN.WALL);
+            this.setTile(cx + innerRadius, y, TERRAIN.WALL);
         }
 
-        // Open some gates
-        this.setTile(10, 5, TERRAIN.GROUND); // Top Gate
-        this.setTile(10, 15, TERRAIN.GROUND); // Bottom Gate
+        // 3. Open Gates (Lanes)
+        const gateSize = 3;
+        // West Gate
+        for (let y = cy - 1; y <= cy + 1; y++) this.setTile(cx - innerRadius, y, TERRAIN.GROUND);
+        // East Gate
+        for (let y = cy - 1; y <= cy + 1; y++) this.setTile(cx + innerRadius, y, TERRAIN.GROUND);
+        // North Gate
+        for (let x = cx - 1; x <= cx + 1; x++) this.setTile(x, cy - innerRadius, TERRAIN.GROUND);
+        // South Gate
+        for (let x = cx - 1; x <= cx + 1; x++) this.setTile(x, cy + innerRadius, TERRAIN.GROUND);
 
-        // Add a Water pool
-        for (let x = 18; x < 22; x++) {
-            for (let y = 8; y < 12; y++) {
+        // 4. Outer Hazards (Water/Walls)
+        // Add some random water pools outside the arena
+        for (let x = cx - 15; x < cx - 10; x++) {
+            for (let y = cy - 5; y < cy + 5; y++) {
                 this.setTile(x, y, TERRAIN.WATER);
             }
         }
-
-        // Add a random pillar (Wall) inside
-        this.setTile(8, 8, TERRAIN.WALL);
     }
 
     setTile(x, y, type) {

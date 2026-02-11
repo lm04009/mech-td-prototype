@@ -27,12 +27,16 @@ let projectiles = [];
 let enemies = [];
 let gameOver = false;
 
-// Path Definition (Top-Left -> Center)
+// Path Definition (Navigating around Water Hazard)
+// Water is at [cx-15 to cx-10] and [cy-5 to cy+5]
+// Lane is at cy.
+// We must go around. Let's go NORTH.
 const ENEMY_PATH = [
-    { x: 0, y: 0 },
-    { x: 400, y: 0 },
-    { x: 400, y: 200 },
-    { x: terminal.x, y: terminal.y }
+    { x: 0, y: terminal.y - (6 * TILE_SIZE) }, // Start Top-Left-ish (Above water)
+    { x: terminal.x - (10 * TILE_SIZE), y: terminal.y - (6 * TILE_SIZE) }, // Move East past water (Water ends at cx-10)
+    { x: terminal.x - (10 * TILE_SIZE), y: terminal.y }, // Move South to align with Gate
+    { x: terminal.x - (8 * TILE_SIZE), y: terminal.y }, // Enter West Gate
+    { x: terminal.x, y: terminal.y } // Terminal
 ];
 
 // Wave State
