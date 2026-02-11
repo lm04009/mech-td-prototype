@@ -15,13 +15,22 @@ export class Projectile {
         this.color = '#ffff00';
     }
 
-    update(dt) {
+    update(dt, map) {
         // Move
         const dx = this.vx * dt;
         const dy = this.vy * dt;
 
-        this.x += dx;
-        this.y += dy;
+        const nextX = this.x + dx;
+        const nextY = this.y + dy;
+
+        // Wall Collision
+        if (map && map.isSolid(nextX, nextY)) {
+            this.markedForDeletion = true;
+            return;
+        }
+
+        this.x = nextX;
+        this.y = nextY;
 
         // Track distance
         this.distanceTraveled += Math.sqrt(dx * dx + dy * dy);

@@ -15,11 +15,20 @@ export class Mech {
         this.angle = 0; // Facing angle
     }
 
-    update(dt, inputVector, mousePos, inputState) {
+    update(dt, inputVector, mousePos, inputState, map) {
         // Movement
         if (inputVector.x !== 0 || inputVector.y !== 0) {
-            this.x += inputVector.x * this.speed * dt;
-            this.y += inputVector.y * this.speed * dt;
+            const nextX = this.x + inputVector.x * this.speed * dt;
+            const nextY = this.y + inputVector.y * this.speed * dt;
+
+            // Basic Collision Check (Center Point) for v0
+            // Ideally should check corners, but point check is enough to prove concept
+            if (map.isWalkable(nextX, this.y)) {
+                this.x = nextX;
+            }
+            if (map.isWalkable(this.x, nextY)) {
+                this.y = nextY;
+            }
         }
 
         // Face Mouse
