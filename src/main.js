@@ -221,7 +221,7 @@ function updatePlaying(dt) {
 
     // Update Towers
     for (const tower of towers) {
-        const p = tower.update(dt, enemies);
+        const p = tower.update(dt, enemies, map);
         if (p) {
             projectiles.push(p);
         }

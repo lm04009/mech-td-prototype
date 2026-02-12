@@ -19,19 +19,19 @@ export class Tower {
         this.target = null;
     }
 
-    update(dt, enemies) {
+    update(dt, enemies, map) {
         this.timer -= dt;
 
         // 1. Validate existing target
         if (this.target) {
-            if (this.target.hp <= 0 || this.target.markedForDeletion || !this.isInRange(this.target)) {
+            if (this.target.hp <= 0 || this.target.markedForDeletion || !this.isInRange(this.target) || !map.hasLineOfSight(this.x, this.y, this.target.x, this.target.y)) {
                 this.target = null;
             }
         }
 
         // 2. Find new target if needed
         if (!this.target) {
-            this.target = this.findTarget(enemies);
+            this.target = this.findTarget(enemies, map);
         }
 
         // 3. Track Target
@@ -48,17 +48,9 @@ export class Tower {
         return null;
     }
 
-    findTarget(enemies) {
-        let bestTarget = null;
-        let maxDist = -1; // We want the enemy furthest along the path (usually default array order is spawn order, so index 0 is oldest)
-
-        // Simple heuristic: Oldest enemy in range (enemies[0] is usually oldest)
-        // Or closest to range?
-        // Let's go with: Closest to Tower for v0 simplicity, OR First in Range.
-        // Standard TD behavior: "First" (furthest along path).
-
+    findTarget(enemies, map) {
         for (const enemy of enemies) {
-            if (this.isInRange(enemy)) {
+            if (this.isInRange(enemy) && map.hasLineOfSight(this.x, this.y, enemy.x, enemy.y)) {
                 // Since enemies array is usually sorted by spawn time (oldest first), 
                 // the first one we find is the one furthest ahead.
                 return enemy;
@@ -82,8 +74,8 @@ export class Tower {
 
         // Create projectile targeting the current enemy position
         // Ideally we predict movement, but for v0 direct aim is fine.
-        const p = new Projectile(mx, my, this.target.x, this.target.y);
-        p.speed = 400; // Fast tower shots
+        const speed = 400;
+        const p = new Projectile(mx, my, this.angle, speed, this.range);
         p.color = '#00ffff'; // Cyan bullets
         return p;
     }

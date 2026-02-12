@@ -132,6 +132,25 @@ export class GameMap {
         return tile === TERRAIN.WALL;
     }
 
+    // Simple Raycast for Line of Sight
+    hasLineOfSight(x0, y0, x1, y1) {
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const steps = Math.ceil(dist / (this.tileSize / 2)); // Check every half-tile
+
+        for (let i = 1; i < steps; i++) {
+            const t = i / steps;
+            const x = x0 + dx * t;
+            const y = y0 + dy * t;
+
+            if (this.isSolid(x, y)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     draw(ctx) {
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
