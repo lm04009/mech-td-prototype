@@ -45,7 +45,7 @@ let map;
 let enemyPath;
 let credits = 500; // Starting Credits
 let towers = [];
-let constructionMode = false;
+// constructionMode removed
 let clickProcessed = false; // Debounce click
 
 // Fixed World Size
@@ -114,9 +114,7 @@ window.addEventListener('keydown', (e) => {
         console.log(`Terminal HP: ${terminal.hp}`);
     }
 
-    if (e.key.toLowerCase() === 'b') {
-        constructionMode = !constructionMode;
-    }
+    // 'B' key listener removed
 });
 
 let lastTime = 0;
@@ -161,13 +159,42 @@ function updatePlaying(dt) {
         enemies.push(new Enemy(enemyPath));
     }
 
-    // Update Mech & Fire
+    // 1. Get Input State
     const movement = input.getMovementVector();
-
-    // Get Mouse in World Space
     const mouseWorld = input.getMouseWorld(camera);
+    const grid = input.getMouseGrid(camera, TILE_SIZE);
 
-    const newProjectile = mech.update(dt, movement, mouseWorld, mouseWorld, map);
+    // 2. Check Context (Hovering Socket?)
+    // isBuildable checks: 1. Is Socket? 2. Is Empty?
+    const hoveringSocket = map.isBuildable(grid.col, grid.row);
+
+    // 3. Handle Build Input (Click)
+    let didBuild = false;
+    if (mouseWorld.isDown && !clickProcessed) {
+        clickProcessed = true; // Debounce
+
+        if (hoveringSocket) {
+            // Context: Build
+            if (tryBuildTower(grid.col, grid.row)) {
+                didBuild = true;
+            }
+        }
+    }
+
+    if (!mouseWorld.isDown) {
+        clickProcessed = false;
+    }
+
+    // 4. Update Mech (Weapon Fire)
+    // If we are hovering a socket, suppress weapon fire.
+    // We create a copy of mouse input for the mech.
+    const mechInputMouse = { ...mouseWorld };
+
+    if (hoveringSocket) {
+        mechInputMouse.isDown = false; // Suppress fire
+    }
+
+    const newProjectile = mech.update(dt, movement, mechInputMouse, mouseWorld, map);
 
     if (newProjectile) {
         projectiles.push(newProjectile);
@@ -227,34 +254,13 @@ function updatePlaying(dt) {
         }
     }
 
-    // Handle Building Input
-    handleConstruction();
-}
-
-function handleConstruction() {
-    // Debouce click (only build on fresh click)
-    const mouseState = input.getMouseWorld(camera);
-
-    if (mouseState.isDown && !clickProcessed) {
-        clickProcessed = true;
-
-        if (constructionMode) {
-            const grid = input.getMouseGrid(camera, TILE_SIZE);
-            tryBuildTower(grid.col, grid.row);
-        } else {
-            // Main weapon fire is handled in mech.update()
-        }
-    }
-
-    if (!mouseState.isDown) {
-        clickProcessed = false;
-    }
+    // handleConstruction() is removed (logic integrated above)
 }
 
 function tryBuildTower(col, row) {
     // 1. Check Cost
     const COST = 100;
-    if (credits < COST) return;
+    if (credits < COST) return false;
 
     // 2. Check Map Validity (Socket + Empty)
     if (map.isBuildable(col, row)) {
@@ -262,9 +268,10 @@ function tryBuildTower(col, row) {
         if (map.addTower(t)) {
             towers.push(t);
             spendCredits(COST);
-            // constructionMode = false; // Keep mode on for multiple builds
+            return true;
         }
     }
+    return false;
 }
 
 function drawPlaying(ctx) {
@@ -294,20 +301,22 @@ function drawPlaying(ctx) {
     // Draw Towers
     towers.forEach(t => t.draw(ctx));
 
-    // Draw Ghost (if building)
-    if (constructionMode) {
-        const grid = input.getMouseGrid(camera, TILE_SIZE);
+    // ** Context Sensitive Ghost **
+    // Check if hovering socket
+    const grid = input.getMouseGrid(camera, TILE_SIZE);
+    if (map.isBuildable(grid.col, grid.row)) {
         const x = grid.col * TILE_SIZE;
         const y = grid.row * TILE_SIZE;
-
-        const canBuild = map.isBuildable(grid.col, grid.row) && credits >= 100;
+        const canAfford = credits >= 100;
 
         ctx.save();
-        ctx.fillStyle = canBuild ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+        // Hover Effect
+        ctx.fillStyle = canAfford ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
         ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
         // Range indicator
-        ctx.strokeStyle = canBuild ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+        ctx.strokeStyle = canAfford ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+        ctx.setLineDash([5, 5]);
         ctx.beginPath();
         ctx.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2, 250, 0, Math.PI * 2);
         ctx.stroke();
@@ -323,17 +332,16 @@ function drawPlaying(ctx) {
     // Debug Info (UI)
     ctx.fillStyle = '#fff';
     ctx.font = '12px Courier New';
-    ctx.fillText(`WASD to Move, Click to Fire, 'B' to Build`, 10, 20);
-    ctx.fillText(`Mech: ${Math.round(mech.x)}, ${Math.round(mech.y)}`, 10, 35);
-    ctx.fillText(`Cam: ${Math.round(camera.x)}, ${Math.round(camera.y)}`, 10, 50);
-    ctx.fillText(`Enemies: ${enemies.length}`, 10, 65);
+    ctx.fillText(`WASD to Move, Click to Fire`, 10, 20);
+    ctx.fillText(`Hover Socket -> Click to Build (Cost: 100)`, 10, 35);
+    ctx.fillText(`Mech: ${Math.round(mech.x)}, ${Math.round(mech.y)}`, 10, 50);
     ctx.fillText(`Enemies: ${enemies.length}`, 10, 65);
     ctx.fillText(`Terminal HP: ${terminal.hp}/${terminal.maxHp}`, 10, 80);
 
     // Credits UI
     ctx.fillStyle = '#ffcc00';
     ctx.font = 'bold 20px Courier New';
-    ctx.fillText(`CREDITS: ${credits} ${constructionMode ? '[BUILD MODE]' : ''}`, 10, 110);
+    ctx.fillText(`CREDITS: ${credits}`, 10, 110);
 }
 
 // Economy Helpers
