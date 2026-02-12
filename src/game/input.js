@@ -62,6 +62,14 @@ export class InputHandler {
         };
     }
 
+    getMouseGrid(camera, tileSize) {
+        const world = this.getMouseWorld(camera);
+        return {
+            col: Math.floor(world.x / tileSize),
+            row: Math.floor(world.y / tileSize)
+        };
+    }
+
     getMovementVector() {
         let x = 0;
         let y = 0;

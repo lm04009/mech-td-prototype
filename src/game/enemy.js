@@ -10,6 +10,7 @@ export class Enemy {
         this.hp = 20;
         this.damage = 100; // Damage to terminal
         this.color = '#ff0000'; // Red
+        this.bounty = 25; // Credits reward
 
         this.markedForDeletion = false;
         this.reachedEnd = false;

@@ -4,6 +4,7 @@ import { GameMap } from './game/map.js';
 import { Terminal } from './game/terminal.js';
 import { Enemy } from './game/enemy.js';
 import { Camera } from './game/camera.js';
+import { Tower } from './game/tower.js';
 
 console.log('Initializing Mech TD Prototype v0...');
 
@@ -42,6 +43,10 @@ let enemies;
 let spawnTimer;
 let map;
 let enemyPath;
+let credits = 500; // Starting Credits
+let towers = [];
+let constructionMode = false;
+let clickProcessed = false; // Debounce click
 
 // Fixed World Size
 const WORLD_WIDTH_TILES = 50;
@@ -81,7 +86,9 @@ function resetGame() {
 
     projectiles = [];
     enemies = [];
+    towers = [];
     spawnTimer = 0;
+    credits = 500;
 
     console.log(`Game Reset. Map: ${map.width}x${map.height}, Terms: ${terminal.x},${terminal.y}`);
 }
@@ -103,6 +110,12 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'k') {
         terminal.takeDamage(100);
         console.log(`Terminal HP: ${terminal.hp}`);
+        terminal.takeDamage(100);
+        console.log(`Terminal HP: ${terminal.hp}`);
+    }
+
+    if (e.key.toLowerCase() === 'b') {
+        constructionMode = !constructionMode;
     }
 });
 
@@ -192,6 +205,10 @@ function updatePlaying(dt) {
                 if (dist < (p.size + enemy.size / 2)) {
                     enemy.takeDamage(10); // Simple damage
                     p.markedForDeletion = true;
+
+                    if (enemy.hp <= 0) {
+                        addCredits(enemy.bounty);
+                    }
                     break;
                 }
             }
@@ -199,6 +216,53 @@ function updatePlaying(dt) {
 
         if (p.markedForDeletion) {
             projectiles.splice(i, 1);
+        }
+    }
+
+    // Update Towers
+    for (const tower of towers) {
+        const p = tower.update(dt, enemies);
+        if (p) {
+            projectiles.push(p);
+        }
+    }
+
+    // Handle Building Input
+    handleConstruction();
+}
+
+function handleConstruction() {
+    // Debouce click (only build on fresh click)
+    const mouseState = input.getMouseWorld(camera);
+
+    if (mouseState.isDown && !clickProcessed) {
+        clickProcessed = true;
+
+        if (constructionMode) {
+            const grid = input.getMouseGrid(camera, TILE_SIZE);
+            tryBuildTower(grid.col, grid.row);
+        } else {
+            // Main weapon fire is handled in mech.update()
+        }
+    }
+
+    if (!mouseState.isDown) {
+        clickProcessed = false;
+    }
+}
+
+function tryBuildTower(col, row) {
+    // 1. Check Cost
+    const COST = 100;
+    if (credits < COST) return;
+
+    // 2. Check Map Validity (Socket + Empty)
+    if (map.isBuildable(col, row)) {
+        const t = new Tower(col, row, TILE_SIZE);
+        if (map.addTower(t)) {
+            towers.push(t);
+            spendCredits(COST);
+            // constructionMode = false; // Keep mode on for multiple builds
         }
     }
 }
@@ -227,6 +291,29 @@ function drawPlaying(ctx) {
     // Draw Projectiles
     projectiles.forEach(p => p.draw(ctx));
 
+    // Draw Towers
+    towers.forEach(t => t.draw(ctx));
+
+    // Draw Ghost (if building)
+    if (constructionMode) {
+        const grid = input.getMouseGrid(camera, TILE_SIZE);
+        const x = grid.col * TILE_SIZE;
+        const y = grid.row * TILE_SIZE;
+
+        const canBuild = map.isBuildable(grid.col, grid.row) && credits >= 100;
+
+        ctx.save();
+        ctx.fillStyle = canBuild ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+
+        // Range indicator
+        ctx.strokeStyle = canBuild ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2, 250, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
     // Draw Mech
     mech.draw(ctx);
 
@@ -236,11 +323,30 @@ function drawPlaying(ctx) {
     // Debug Info (UI)
     ctx.fillStyle = '#fff';
     ctx.font = '12px Courier New';
-    ctx.fillText(`WASD to Move, Click to Fire`, 10, 20);
+    ctx.fillText(`WASD to Move, Click to Fire, 'B' to Build`, 10, 20);
     ctx.fillText(`Mech: ${Math.round(mech.x)}, ${Math.round(mech.y)}`, 10, 35);
     ctx.fillText(`Cam: ${Math.round(camera.x)}, ${Math.round(camera.y)}`, 10, 50);
     ctx.fillText(`Enemies: ${enemies.length}`, 10, 65);
+    ctx.fillText(`Enemies: ${enemies.length}`, 10, 65);
     ctx.fillText(`Terminal HP: ${terminal.hp}/${terminal.maxHp}`, 10, 80);
+
+    // Credits UI
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 20px Courier New';
+    ctx.fillText(`CREDITS: ${credits} ${constructionMode ? '[BUILD MODE]' : ''}`, 10, 110);
+}
+
+// Economy Helpers
+function addCredits(amount) {
+    credits += amount;
+}
+
+function spendCredits(amount) {
+    if (credits >= amount) {
+        credits -= amount;
+        return true;
+    }
+    return false;
 }
 
 function drawPath(ctx) {

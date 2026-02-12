@@ -1,0 +1,26 @@
+# Tasks: Tower Construction
+
+- [ ] 1. Foundation & Economy <!-- id: 0 -->
+    - [ ] 1.1 Update `main.js` with `credits` system and UI display <!-- id: 1 -->
+    - [ ] 1.2 Implement `addCredits/spendCredits` helpers <!-- id: 2 -->
+    - [ ] 1.3 Update `Enemy` to have `bounty` value and reward on death <!-- id: 3 -->
+- [ ] 2. Map & Validation <!-- id: 4 -->
+    - [ ] 2.1 Add `TERRAIN.SOCKET` to `map.js` <!-- id: 23 -->
+    - [ ] 2.2 Update `setupTestLevel` to place Sockets at strategic choke points <!-- id: 24 -->
+    - [ ] 2.3 Update `GameMap` with `isBuildable(col, row)` (Socket Check) <!-- id: 5 -->
+- [ ] 3. Tower Class <!-- id: 7 -->
+    - [ ] 3.1 Create `src/game/tower.js` <!-- id: 8 -->
+    - [ ] 3.2 Implement `draw` (Base + Turret) <!-- id: 9 -->
+    - [ ] 3.3 Implement `update` (Find target, cooldown, fire) <!-- id: 10 -->
+- [ ] 4. Construction Mode (Ghost) <!-- id: 11 -->
+    - [ ] 4.1 building UI state in `main.js` (Toggle with 'B' key for now?) <!-- id: 12 -->
+    - [ ] 4.2 Implement "Ghost" rendering (snapped to grid, Red/Green validity) <!-- id: 13 -->
+    - [ ] 4.3 Handle click to build (Coordinates -> Grid -> Place) <!-- id: 14 -->
+- [ ] 5. Projectile Logic <!-- id: 15 -->
+    - [ ] 5.1 Ensure Tower projectiles use `Projectile` class <!-- id: 16 -->
+    - [ ] 5.2 Validate wall collisions work for Towers too <!-- id: 17 -->
+- [ ] 6. Verify <!-- id: 18 -->
+    - [ ] 6.1 Verify grid snapping <!-- id: 19 -->
+    - [ ] 6.2 Verify cost deduction <!-- id: 20 -->
+    - [ ] 6.3 Verify terrain validation (Cant build on water/wall) <!-- id: 21 -->
+    - [ ] 6.4 Verify shooting logic <!-- id: 22 -->

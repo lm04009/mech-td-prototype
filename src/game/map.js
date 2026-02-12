@@ -1,7 +1,8 @@
 export const TERRAIN = {
     GROUND: 0,
     WALL: 1,
-    WATER: 2
+    WATER: 2,
+    SOCKET: 3
 };
 
 export class GameMap {
@@ -10,14 +11,18 @@ export class GameMap {
         this.height = height;
         this.tileSize = tileSize;
         this.tiles = [];
+        this.towers = []; // Track occupied towers [y][x]
 
         // Initialize with Ground
         for (let y = 0; y < height; y++) {
             const row = [];
+            const towerRow = [];
             for (let x = 0; x < width; x++) {
                 row.push(TERRAIN.GROUND);
+                towerRow.push(null);
             }
             this.tiles.push(row);
+            this.towers.push(towerRow);
         }
 
         // Setup Test Level
@@ -43,7 +48,6 @@ export class GameMap {
         }
 
         // 3. Open Gates (Lanes)
-        const gateSize = 3;
         // West Gate
         for (let y = cy - 1; y <= cy + 1; y++) this.setTile(cx - innerRadius, y, TERRAIN.GROUND);
         // East Gate
@@ -60,6 +64,19 @@ export class GameMap {
                 this.setTile(x, y, TERRAIN.WATER);
             }
         }
+
+        // 5. Strategic Sockets
+        // Gate Defenders
+        this.setTile(cx - innerRadius - 1, cy - 3, TERRAIN.SOCKET);
+        this.setTile(cx - innerRadius - 1, cy + 3, TERRAIN.SOCKET);
+        this.setTile(cx + innerRadius + 1, cy - 3, TERRAIN.SOCKET);
+        this.setTile(cx + innerRadius + 1, cy + 3, TERRAIN.SOCKET);
+
+        // Inner Defense Ring
+        this.setTile(cx - 3, cy - 3, TERRAIN.SOCKET);
+        this.setTile(cx + 3, cy - 3, TERRAIN.SOCKET);
+        this.setTile(cx - 3, cy + 3, TERRAIN.SOCKET);
+        this.setTile(cx + 3, cy + 3, TERRAIN.SOCKET);
     }
 
     setTile(x, y, type) {
@@ -79,9 +96,34 @@ export class GameMap {
         return this.tiles[y][x];
     }
 
+    // Check if a TOWER can be built here (Grid Coordinates)
+    isBuildable(col, row) {
+        if (col < 0 || col >= this.width || row < 0 || row >= this.height) return false;
+
+        // Rule 1: Must be a SOCKET
+        if (this.tiles[row][col] !== TERRAIN.SOCKET) return false;
+
+        // Rule 2: Must be Empty
+        if (this.towers[row][col] !== null) return false;
+
+        return true;
+    }
+
+    addTower(tower) {
+        const col = Math.floor(tower.x / this.tileSize);
+        const row = Math.floor(tower.y / this.tileSize);
+        if (this.isBuildable(col, row)) {
+            this.towers[row][col] = tower;
+            return true;
+        }
+        return false;
+    }
+
     isWalkable(worldX, worldY) {
         const tile = this.getTileAt(worldX, worldY);
-        return tile === TERRAIN.GROUND;
+        // Sockets are also walkable by default (unless they have a tower?)
+        // For now, let's say Sockets IS walkable.
+        return tile === TERRAIN.GROUND || tile === TERRAIN.SOCKET;
     }
 
     // Checks if the tile blocks projectiles (only Walls)
@@ -96,14 +138,22 @@ export class GameMap {
                 const tile = this.tiles[y][x];
 
                 if (tile === TERRAIN.GROUND) {
-                    ctx.fillStyle = '#222'; // Default background
-                    // Optional: Don't draw if it's the same color as clear
+                    ctx.fillStyle = '#222';
                 } else if (tile === TERRAIN.WALL) {
                     ctx.fillStyle = '#555';
                     ctx.fillRect(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize);
                 } else if (tile === TERRAIN.WATER) {
                     ctx.fillStyle = '#004488';
                     ctx.fillRect(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize);
+                } else if (tile === TERRAIN.SOCKET) {
+                    // Draw Socket Base
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize);
+
+                    // Draw Socket Ring
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x * this.tileSize + 5, y * this.tileSize + 5, this.tileSize - 10, this.tileSize - 10);
                 }
             }
         }
