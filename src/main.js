@@ -3,48 +3,103 @@ import { Mech } from './game/mech.js';
 import { GameMap } from './game/map.js';
 import { Terminal } from './game/terminal.js';
 import { Enemy } from './game/enemy.js';
+import { Camera } from './game/camera.js';
 
 console.log('Initializing Mech TD Prototype v0...');
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
+let camera; // Declare early to avoid TDZ
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    if (camera) {
+        camera.resize(canvas.width, canvas.height);
+    }
 }
 
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    // No reset needed anymore!
+});
 resizeCanvas();
 
-// Game State
-const TILE_SIZE = 40;
-const map = new GameMap(Math.ceil(window.innerWidth / TILE_SIZE), Math.ceil(window.innerHeight / TILE_SIZE), TILE_SIZE);
-const input = new InputHandler(canvas);
-const mech = new Mech(canvas.width / 2 - 100, canvas.height / 2);
-const terminal = new Terminal(canvas.width / 2, canvas.height / 2);
-let projectiles = [];
-let enemies = [];
-let gameOver = false;
+// Game State Enum
+const GameState = {
+    PLAYING: 'PLAYING',
+    GAME_OVER: 'GAME_OVER'
+};
 
-// Path Definition (Navigating around Water Hazard)
-// Water is at [cx-15 to cx-10] and [cy-5 to cy+5]
-// Lane is at cy.
-// We must go around. Let's go NORTH.
-const ENEMY_PATH = [
-    { x: 0, y: terminal.y - (6 * TILE_SIZE) }, // Start Top-Left-ish (Above water)
-    { x: terminal.x - (10 * TILE_SIZE), y: terminal.y - (6 * TILE_SIZE) }, // Move East past water (Water ends at cx-10)
-    { x: terminal.x - (10 * TILE_SIZE), y: terminal.y }, // Move South to align with Gate
-    { x: terminal.x - (8 * TILE_SIZE), y: terminal.y }, // Enter West Gate
-    { x: terminal.x, y: terminal.y } // Terminal
-];
+const TILE_SIZE = 40;
+const input = new InputHandler(canvas);
+// Game Variables
+let currentState;
+let mech;
+let terminal;
+let projectiles;
+let enemies;
+let spawnTimer;
+let map;
+let enemyPath;
+
+// Fixed World Size
+const WORLD_WIDTH_TILES = 50;
+const WORLD_HEIGHT_TILES = 50;
+
+function resetGame() {
+    currentState = GameState.PLAYING;
+
+    // Fixed Map Size
+    map = new GameMap(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, TILE_SIZE);
+
+    // Terminal at World Center
+    const cx = (map.width * TILE_SIZE) / 2;
+    const cy = (map.height * TILE_SIZE) / 2;
+
+    mech = new Mech(cx - 100, cy);
+    terminal = new Terminal(cx, cy);
+
+    // Initialize Camera
+    camera = new Camera(
+        map.width * TILE_SIZE,
+        map.height * TILE_SIZE,
+        canvas.width,
+        canvas.height
+    );
+    camera.follow(mech);
+
+    // Generate Path based on NEW terminal position
+    // Water is approx at x: [cx-15, cx-10], y: [cy-5, cy+5]
+    // We route ABOVE the water.
+    enemyPath = [
+        { x: 0, y: cy - (7 * TILE_SIZE) }, // Start Top-Left
+        { x: cx - (8 * TILE_SIZE), y: cy - (7 * TILE_SIZE) }, // Go past water
+        { x: cx - (8 * TILE_SIZE), y: cy }, // Go Down
+        { x: cx, y: cy } // Terminal
+    ];
+
+    projectiles = [];
+    enemies = [];
+    spawnTimer = 0;
+
+    console.log(`Game Reset. Map: ${map.width}x${map.height}, Terms: ${terminal.x},${terminal.y}`);
+}
+
+// Initial Start
+resetGame();
+
+
 
 // Wave State
-let spawnTimer = 0;
 const SPAWN_INTERVAL = 2; // Seconds
 
-// Debug: Kill Terminal
+// Input: Restart & Debug
 window.addEventListener('keydown', (e) => {
+    if (currentState === GameState.GAME_OVER && e.key.toLowerCase() === 'r') {
+        resetGame();
+    }
+
     if (e.key === 'k') {
         terminal.takeDamage(100);
         console.log(`Terminal HP: ${terminal.hp}`);
@@ -55,15 +110,34 @@ let lastTime = 0;
 
 // Game Loop
 function gameLoop(timestamp) {
-    if (gameOver) return;
-
-    const dt = (timestamp - lastTime) / 1000;
+    let dt = (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
+    // Cap dt to prevent "spiral of death" when tab is inactive
+    if (dt > 0.1) dt = 0.1;
+
+    switch (currentState) {
+        case GameState.PLAYING:
+            updatePlaying(dt);
+            drawPlaying(ctx);
+            break;
+        case GameState.GAME_OVER:
+            drawPlaying(ctx); // Draw game behind overlay
+            drawGameOver(ctx);
+
+            // Check Restart Input
+            // (Ideally input handling should be in its own function, but for v0 implementation this is fine)
+            // We'll add the listener elsewhere, but this connects the state.
+            break;
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+function updatePlaying(dt) {
     // Check Game Over
     if (terminal.hp <= 0) {
-        gameOver = true;
-        drawGameOver(ctx);
+        currentState = GameState.GAME_OVER;
         return;
     }
 
@@ -71,16 +145,23 @@ function gameLoop(timestamp) {
     spawnTimer += dt;
     if (spawnTimer >= SPAWN_INTERVAL) {
         spawnTimer = 0;
-        enemies.push(new Enemy(ENEMY_PATH));
+        enemies.push(new Enemy(enemyPath));
     }
 
     // Update Mech & Fire
     const movement = input.getMovementVector();
-    const newProjectile = mech.update(dt, movement, input.mouse, input.mouse, map);
+
+    // Get Mouse in World Space
+    const mouseWorld = input.getMouseWorld(camera);
+
+    const newProjectile = mech.update(dt, movement, mouseWorld, mouseWorld, map);
 
     if (newProjectile) {
         projectiles.push(newProjectile);
     }
+
+    // Update Camera
+    camera.follow(mech);
 
     // Update Enemies
     for (let i = enemies.length - 1; i >= 0; i--) {
@@ -120,10 +201,16 @@ function gameLoop(timestamp) {
             projectiles.splice(i, 1);
         }
     }
+}
 
-    // Render
+function drawPlaying(ctx) {
+    // Clear Screen (Screen Space)
     ctx.fillStyle = '#222';
-    ctx.fillRect(0, 0, canvas.width, canvas.height); // Clear screen
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Start World Space
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
 
     // Draw Map
     map.draw(ctx);
@@ -143,27 +230,28 @@ function gameLoop(timestamp) {
     // Draw Mech
     mech.draw(ctx);
 
-    // Debug Info
+    // Restore Screen Space
+    ctx.restore();
+
+    // Debug Info (UI)
     ctx.fillStyle = '#fff';
     ctx.font = '12px Courier New';
     ctx.fillText(`WASD to Move, Click to Fire`, 10, 20);
-    ctx.fillText(`Pos: ${Math.round(mech.x)}, ${Math.round(mech.y)}`, 10, 35);
-    ctx.fillText(`Projectiles: ${projectiles.length}`, 10, 50);
+    ctx.fillText(`Mech: ${Math.round(mech.x)}, ${Math.round(mech.y)}`, 10, 35);
+    ctx.fillText(`Cam: ${Math.round(camera.x)}, ${Math.round(camera.y)}`, 10, 50);
     ctx.fillText(`Enemies: ${enemies.length}`, 10, 65);
     ctx.fillText(`Terminal HP: ${terminal.hp}/${terminal.maxHp}`, 10, 80);
-
-    requestAnimationFrame(gameLoop);
 }
 
 function drawPath(ctx) {
-    if (ENEMY_PATH.length < 2) return;
+    if (!enemyPath || enemyPath.length < 2) return;
 
     ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
     ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(ENEMY_PATH[0].x, ENEMY_PATH[0].y);
-    for (let i = 1; i < ENEMY_PATH.length; i++) {
-        ctx.lineTo(ENEMY_PATH[i].x, ENEMY_PATH[i].y);
+    ctx.moveTo(enemyPath[0].x, enemyPath[0].y);
+    for (let i = 1; i < enemyPath.length; i++) {
+        ctx.lineTo(enemyPath[i].x, enemyPath[i].y);
     }
     ctx.stroke();
 }
@@ -180,6 +268,7 @@ function drawGameOver(ctx) {
     ctx.fillStyle = '#fff';
     ctx.font = '24px Courier New';
     ctx.fillText('Terminal Destroyed', canvas.width / 2, canvas.height / 2 + 50);
+    ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 80);
 }
 
 // Start loop

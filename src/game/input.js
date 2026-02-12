@@ -53,6 +53,15 @@ export class InputHandler {
         }
     }
 
+    getMouseWorld(camera) {
+        if (!camera) return this.mouse;
+        return {
+            x: this.mouse.x + camera.x,
+            y: this.mouse.y + camera.y,
+            isDown: this.mouse.isDown
+        };
+    }
+
     getMovementVector() {
         let x = 0;
         let y = 0;
