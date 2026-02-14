@@ -5,7 +5,7 @@ export const CONFIG = {
 
 export const LEVEL_1_ENCOUNTER = [
     {
-        lane: 'NORTH',
+        lane: 'WEST', // Complex Path
         startTime: 5,
         count: 10,
         interval: 1.5,

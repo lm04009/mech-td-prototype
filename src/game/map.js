@@ -196,27 +196,55 @@ export class GameMap {
     }
 
     defineLanes() {
-        const cx = Math.floor(this.width * this.tileSize / 2); // Center X (Pixel)
-        const cy = Math.floor(this.height * this.tileSize / 2); // Center Y (Pixel)
+        const cx = Math.floor(this.width * this.tileSize / 2);
+        const cy = Math.floor(this.height * this.tileSize / 2);
+        const TS = this.tileSize;
 
-        // Define paths from Edge -> Center (Terminal)
-        // Note: Coordinates are in Pixels for EncounterManager/Enemies
+        // Helper to center on tile
+        const t = (c, r) => ({ x: c * TS + TS / 2, y: r * TS + TS / 2 });
+
+        // Center Tile (Goal)
+        const center = t(Math.floor(this.width / 2), Math.floor(this.height / 2));
+
         return {
             NORTH: [
-                { x: cx, y: 0 },
-                { x: cx, y: cy }
+                t(Math.floor(this.width / 2), 2), // Start slightly inset
+                center
             ],
             SOUTH: [
-                { x: cx, y: this.height * this.tileSize },
-                { x: cx, y: cy }
+                t(Math.floor(this.width / 2), this.height - 3),
+                center
             ],
             EAST: [
-                { x: this.width * this.tileSize, y: cy },
-                { x: cx, y: cy }
+                t(this.width - 3, Math.floor(this.height / 2)),
+                center
             ],
             WEST: [
-                { x: 0, y: cy },
-                { x: cx, y: cy }
+                // Complex Path avoiding Water (x:10-15, meaning 10..14)
+                // Center is ~25, 25. Gate is at x=17, y=25.
+                // Socket is at x=16, y=22 and y=28.
+                // Water is at x=10..14, y=20..29.
+                // x=15 is safe GROUND (between Water at x=14 and Socket/Gate at x=16/17).
+
+                // 1. Start Left Edge(x=1, y=25)
+                t(1, 25),
+
+                // 2. Go straight EAST to x=8 (Before Water at x=10)
+                t(8, 25),
+
+                // 3. Divert UP around water (to y=18, above y=20)
+                t(8, 18),
+
+                // 4. Go EAST across top of water (to x=15, safe from Water and Sockets along x=16)
+                t(15, 18),
+
+                // 5. Go DOWN to align with Gate (y=25)
+                // This vertical line x=15, y=18->25 stays right of Water (x=14) and left of Sockets (x=16)
+                t(15, 25),
+
+                // 6. Go EAST through Gate (x=17+) to Center (25, 25)
+                // Passes (16, 25) which is safe ground between Sockets (16,22) and (16,28).
+                center
             ]
         };
     }

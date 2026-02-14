@@ -69,6 +69,11 @@ export class EncounterManager {
                 console.log(`Portal ${portal.lane} finished spawning.`);
             }
         }
+
+        // 4. Check for Win Condition
+        if (this.events.length === 0 && this.activePortals.length === 0 && this.game.entities.enemies.length === 0) {
+            this.game.triggerWin();
+        }
     }
 
     activatePortal(event) {

@@ -29,7 +29,7 @@ export class Game {
         this.input = new InputHandler(canvas);
 
         // Game State
-        this.gameState = 'PLAYING'; // 'PLAYING', 'GAME_OVER'
+        this.gameState = 'PLAYING'; // 'PLAYING', 'GAME_OVER', 'GAME_WIN'
         this.credits = 500;
 
         // Entities & Systems (Initialized in reset)
@@ -92,16 +92,16 @@ export class Game {
     }
 
     onKeyDown(e) {
-        if (this.gameState === 'GAME_OVER' && e.key.toLowerCase() === 'r') {
+        if ((this.gameState === 'GAME_OVER' || this.gameState === 'GAME_WIN') && e.key.toLowerCase() === 'r') {
             this.reset();
         }
-        if (e.key === 'k') { // Debug Kill
+        if (this.gameState === 'PLAYING' && e.key === 'k') { // Debug Kill, only when playing
             this.terminal.takeDamage(100);
         }
     }
 
     update(dt) {
-        if (this.gameState === 'GAME_OVER') return;
+        if (this.gameState === 'GAME_OVER' || this.gameState === 'GAME_WIN') return;
 
         // 1. Check Loss
         if (this.terminal.hp <= 0 || this.mech.hp <= 0) { // Added Mech HP check for completeness
@@ -187,7 +187,6 @@ export class Game {
     }
 
     // Visual Helpers
-    // Visual Helpers
     drawEncounterOverlay(ctx) {
         if (!this.encounter || !this.map) return;
 
@@ -199,11 +198,22 @@ export class Game {
         this.encounter.telegraphLanes.forEach(laneId => {
             const path = this.map.getLanePath(laneId);
             if (path.length > 1) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Faded White
-                ctx.setLineDash([10, 10]);
+                // Pulse Effect
+                const alpha = 0.2 + Math.sin(Date.now() / 200) * 0.1;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.setLineDash([15, 10]);
                 ctx.beginPath();
                 ctx.moveTo(path[0].x, path[0].y);
                 for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.stroke();
+
+                // Draw Portal Indicator (Inactive)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.beginPath();
+                ctx.arc(path[0].x, path[0].y, 25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
                 ctx.stroke();
             }
         });
@@ -213,19 +223,55 @@ export class Game {
         this.encounter.activeLanes.forEach(laneId => {
             const path = this.map.getLanePath(laneId);
             if (path.length > 1) {
-                ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)'; // Reddish
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = 'red';
-                ctx.beginPath();
-                ctx.moveTo(path[0].x, path[0].y);
-                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-                ctx.stroke();
+                // Check if this lane is currently spawning (Active Portal)
+                const isSpawning = this.encounter.activePortals.some(p => p.lane === laneId);
 
-                // Draw Portal at Start
-                ctx.fillStyle = '#ff0000';
-                ctx.beginPath();
-                ctx.arc(path[0].x, path[0].y, 10, 0, Math.PI * 2);
-                ctx.fill();
+                if (isSpawning) {
+                    // Intense Glow & Pulse
+                    const pulse = 1.0 + Math.sin(Date.now() / 150) * 0.1;
+
+                    ctx.strokeStyle = '#ff4444';
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = 'red';
+
+                    ctx.beginPath();
+                    ctx.moveTo(path[0].x, path[0].y);
+                    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                    ctx.stroke();
+
+                    // Draw Portal (Active Spawning) - Big and Animated
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.fillStyle = '#aa0000'; // Dark Red Center
+                    ctx.beginPath();
+                    ctx.arc(path[0].x, path[0].y, 20 * pulse, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Rim
+                    ctx.strokeStyle = '#ff8888';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                } else {
+                    // Established Path (Finished Spawning) - Static, Darker Red
+                    ctx.strokeStyle = '#880000'; // Dark Red
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 0; // No glow
+
+                    ctx.beginPath();
+                    ctx.moveTo(path[0].x, path[0].y);
+                    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                    ctx.stroke();
+
+                    // Draw Portal (Inactive/Dormant) - Small, Dark
+                    ctx.fillStyle = '#440000';
+                    ctx.beginPath();
+                    ctx.arc(path[0].x, path[0].y, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#660000';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
             }
         });
 
@@ -255,7 +301,11 @@ export class Game {
     drawUI(ctx) {
         if (this.gameState === 'GAME_OVER') {
             this.drawGameOver(ctx);
-            return; // Or draw both?
+            return;
+        }
+        if (this.gameState === 'GAME_WIN') {
+            this.drawWinScreen(ctx);
+            return;
         }
 
         ctx.fillStyle = '#fff';
@@ -284,7 +334,28 @@ export class Game {
         ctx.font = '24px Courier New';
         ctx.fillText('Terminal Destroyed', this.canvas.width / 2, this.canvas.height / 2 + 50);
         ctx.fillText('Press R to Restart', this.canvas.width / 2, this.canvas.height / 2 + 80);
-        // Reset alignment
+        ctx.textAlign = 'start';
+    }
+
+    triggerWin() {
+        if (this.gameState !== 'PLAYING') return;
+        this.gameState = 'GAME_WIN';
+        console.log('VICTORY!');
+    }
+
+    drawWinScreen(ctx) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        ctx.fillStyle = '#0f0';
+        ctx.font = '48px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('MISSION COMPLETE', this.canvas.width / 2, this.canvas.height / 2);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px Courier New';
+        // ctx.fillText(`Credits Earned: ${this.credits}`, this.canvas.width / 2, this.canvas.height / 2 + 50);
+        ctx.fillText('Press R to Restart', this.canvas.width / 2, this.canvas.height / 2 + 80);
         ctx.textAlign = 'start';
     }
 }
