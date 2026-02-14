@@ -38,6 +38,13 @@ export class EncounterManager {
         for (const event of this.events) {
             if (event.startTime - CONFIG.TELEGRAPH_DURATION <= this.encounterTime &&
                 event.startTime > this.encounterTime) {
+
+                // If this is a NEW telegraph, enable sockets
+                if (!this.telegraphLanes.has(event.lane) && !this.activeLanes.has(event.lane)) {
+                    console.log(`Encounter: Telegraph started for ${event.lane}`);
+                    this.game.map.unlockLaneSockets(event.lane);
+                }
+
                 this.telegraphLanes.add(event.lane);
             }
         }
@@ -78,6 +85,7 @@ export class EncounterManager {
 
     activatePortal(event) {
         console.log(`Activating Portal: ${event.lane}`);
+        this.game.map.unlockLaneSockets(event.lane);
         this.telegraphLanes.delete(event.lane); // No longer just a telegraph
         this.activeLanes.add(event.lane);       // Now Active
 

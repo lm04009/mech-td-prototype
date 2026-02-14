@@ -1,9 +1,14 @@
-export const TERRAIN = {
-    GROUND: 0,
-    WALL: 1,
-    WATER: 2,
-    SOCKET: 3
-};
+import { LaneGenerator } from './map/LaneGenerator.js';
+import { TERRAIN } from './Terrain.js';
+
+export { TERRAIN }; // Re-export for compatibility if needed, or just remove export if unused externally (Game.js uses it?) 
+// Game.js generally imports GameMap. But maybe imports TERRAIN from map.js?
+// Inspecting Game.js imports... it didn't import TERRAIN explicitly in my view earlier.
+// Wait, isBuildable used TERRAIN.SOCKET.
+// LaneGenerator imports TERRAIN.
+// check imports in other files?
+// Let's re-export it to be safe.
+
 
 export class GameMap {
     constructor(width, height, tileSize) {
@@ -12,6 +17,7 @@ export class GameMap {
         this.tileSize = tileSize;
         this.tiles = [];
         this.towers = []; // Track occupied towers [y][x]
+        this.lanes = {};
 
         // Initialize with Ground
         for (let y = 0; y < height; y++) {
@@ -25,9 +31,6 @@ export class GameMap {
             this.towers.push(towerRow);
         }
 
-        // Precompute Lanes
-        this.lanes = this.defineLanes();
-
         // Setup Test Level
         this.setupTestLevel();
     }
@@ -37,7 +40,7 @@ export class GameMap {
         const cy = Math.floor(this.height / 2);
 
         // 1. Clear Center (Safe Zone)
-        // (Default is Ground, so we just ensure we don't build here)
+        // (Default is Ground)
 
         // 2. Build "Arena" Walls (Inner Ring)
         const innerRadius = 8;
@@ -50,36 +53,87 @@ export class GameMap {
             this.setTile(cx + innerRadius, y, TERRAIN.WALL);
         }
 
-        // 3. Open Gates (Lanes)
-        // West Gate
-        for (let y = cy - 1; y <= cy + 1; y++) this.setTile(cx - innerRadius, y, TERRAIN.GROUND);
-        // East Gate
-        for (let y = cy - 1; y <= cy + 1; y++) this.setTile(cx + innerRadius, y, TERRAIN.GROUND);
-        // North Gate
-        for (let x = cx - 1; x <= cx + 1; x++) this.setTile(x, cy - innerRadius, TERRAIN.GROUND);
-        // South Gate
-        for (let x = cx - 1; x <= cx + 1; x++) this.setTile(x, cy + innerRadius, TERRAIN.GROUND);
+        // 3. Open Gates (Gap in Walls)
+        const GATES = [
+            { x: cx, y: cy - innerRadius }, // N
+            { x: cx, y: cy + innerRadius }, // S
+            { x: cx + innerRadius, y: cy }, // E
+            { x: cx - innerRadius, y: cy }, // W
+        ];
+        // Clear 3-wide gaps
+        for (let g of GATES) {
+            for (let i = -1; i <= 1; i++) {
+                if (g.x === cx) this.setTile(g.x + i, g.y, TERRAIN.GROUND);
+                else this.setTile(g.x, g.y + i, TERRAIN.GROUND);
+            }
+        }
 
         // 4. Outer Hazards (Water/Walls)
-        // Add some random water pools outside the arena
+        // Add some random water pools to test pathfinding
         for (let x = cx - 15; x < cx - 10; x++) {
             for (let y = cy - 5; y < cy + 5; y++) {
                 this.setTile(x, y, TERRAIN.WATER);
             }
         }
 
-        // 5. Strategic Sockets
-        // Gate Defenders
-        this.setTile(cx - innerRadius - 1, cy - 3, TERRAIN.SOCKET);
-        this.setTile(cx - innerRadius - 1, cy + 3, TERRAIN.SOCKET);
-        this.setTile(cx + innerRadius + 1, cy - 3, TERRAIN.SOCKET);
-        this.setTile(cx + innerRadius + 1, cy + 3, TERRAIN.SOCKET);
+        // 5. Generate Lanes (Dynamic)
+        this.generateLanes(cx, cy);
+    }
 
-        // Inner Defense Ring
-        this.setTile(cx - 3, cy - 3, TERRAIN.SOCKET);
-        this.setTile(cx + 3, cy - 3, TERRAIN.SOCKET);
-        this.setTile(cx - 3, cy + 3, TERRAIN.SOCKET);
-        this.setTile(cx + 3, cy + 3, TERRAIN.SOCKET);
+    generateLanes(cx, cy) {
+        // center is target
+        const center = { x: cx, y: cy };
+        const TS = this.tileSize;
+
+        // Define Spawners
+        const SPAWNERS = [
+            { id: 'NORTH', x: cx, y: 2 },
+            { id: 'SOUTH', x: cx, y: this.height - 3 },
+            { id: 'EAST', x: this.width - 3, y: cy },
+            { id: 'WEST', x: 2, y: cy } // Far West
+        ];
+
+        this.lanes = {};
+
+        const generator = new LaneGenerator(this);
+
+        for (const spawner of SPAWNERS) {
+            const laneObj = generator.generateLane(spawner.id, spawner, center);
+            if (laneObj) {
+                // Convert Path to World
+                const worldPath = laneObj.path.map(p => ({
+                    x: p.x * TS + TS / 2,
+                    y: p.y * TS + TS / 2
+                }));
+
+                this.lanes[spawner.id] = {
+                    id: spawner.id,
+                    path: worldPath,
+                    sockets: laneObj.sockets // Grid Coords
+                };
+
+                // Mark Sockets on Map as HIDDEN initially
+                for (const s of laneObj.sockets) {
+                    this.setTile(s.x, s.y, TERRAIN.HIDDEN_SOCKET);
+                }
+            }
+        }
+    }
+
+    unlockLaneSockets(laneId) {
+        const lane = this.lanes[laneId];
+        if (!lane || !lane.sockets) {
+            console.warn(`Map: Cannot unlock sockets for unknown lane ${laneId}`);
+            return;
+        }
+
+        console.log(`Map: Unlocking ${lane.sockets.length} sockets for ${laneId}`);
+        for (const s of lane.sockets) {
+            // Only unlock if it's currently hidden
+            if (this.tiles[s.y][s.x] === TERRAIN.HIDDEN_SOCKET) {
+                this.setTile(s.x, s.y, TERRAIN.SOCKET);
+            }
+        }
     }
 
     setTile(x, y, type) {
@@ -125,8 +179,25 @@ export class GameMap {
     isWalkable(worldX, worldY) {
         const tile = this.getTileAt(worldX, worldY);
         // Sockets are also walkable by default (unless they have a tower?)
-        // For now, let's say Sockets IS walkable.
-        return tile === TERRAIN.GROUND || tile === TERRAIN.SOCKET;
+        // HIDDEN_SOCKET is treated as GROUND implicitly? 
+        // No, current logic: tile === GROUND || tile === SOCKET
+        // If it's HIDDEN_SOCKET, isWalkable() returns false.
+        // This effectively makes it a WALL for movement! 
+        // This is good for "Impassable Sockets" rule? 
+        // Wait, if it's hidden, it looks like ground (assuming we draw it as ground).
+        // If it blocks movement, invisible walls.
+        // User Requirement: "sockets are impassable."
+        // So yes, HIDDEN_SOCKET should probably act as a wall or obstacle.
+        // But if it's invisible, player might get stuck.
+        // For Lane Generation, we treat SOCKET/HIDDEN_SOCKET as obstacles.
+        // For Player movement?
+        // Let's allow player to walk on them for now to avoid frustration, or treat as solid if they are obstacles.
+        // For simplicity: Player can walk on them? Or strictly adhere to "Impassable".
+        // Let's stick to "Impassable" means impassable for enemies.
+        // Player movement collision uses map.isSolid() -> checks WALL.
+        // So player can walk on sockets.
+
+        return tile === TERRAIN.GROUND || tile === TERRAIN.SOCKET || tile === TERRAIN.HIDDEN_SOCKET;
     }
 
     // Checks if the tile blocks projectiles (only Walls)
@@ -159,8 +230,10 @@ export class GameMap {
             for (let x = 0; x < this.width; x++) {
                 const tile = this.tiles[y][x];
 
-                if (tile === TERRAIN.GROUND) {
-                    ctx.fillStyle = '#222';
+                if (tile === TERRAIN.GROUND || tile === TERRAIN.HIDDEN_SOCKET) {
+                    ctx.fillStyle = '#222'; // Hidden socket looks like ground
+                    // Maybe debug draw hidden sockets slightly differently?
+                    // ctx.fillStyle = '#252525'; 
                 } else if (tile === TERRAIN.WALL) {
                     ctx.fillStyle = '#555';
                     ctx.fillRect(x * this.tileSize, y * this.tileSize, this.tileSize, this.tileSize);
@@ -180,7 +253,7 @@ export class GameMap {
             }
         }
 
-        // Grid lines (optional, kept from main.js or moved here)
+        // Grid lines
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -195,62 +268,10 @@ export class GameMap {
         ctx.stroke();
     }
 
-    defineLanes() {
-        const cx = Math.floor(this.width * this.tileSize / 2);
-        const cy = Math.floor(this.height * this.tileSize / 2);
-        const TS = this.tileSize;
-
-        // Helper to center on tile
-        const t = (c, r) => ({ x: c * TS + TS / 2, y: r * TS + TS / 2 });
-
-        // Center Tile (Goal)
-        const center = t(Math.floor(this.width / 2), Math.floor(this.height / 2));
-
-        return {
-            NORTH: [
-                t(Math.floor(this.width / 2), 2), // Start slightly inset
-                center
-            ],
-            SOUTH: [
-                t(Math.floor(this.width / 2), this.height - 3),
-                center
-            ],
-            EAST: [
-                t(this.width - 3, Math.floor(this.height / 2)),
-                center
-            ],
-            WEST: [
-                // Complex Path avoiding Water (x:10-15, meaning 10..14)
-                // Center is ~25, 25. Gate is at x=17, y=25.
-                // Socket is at x=16, y=22 and y=28.
-                // Water is at x=10..14, y=20..29.
-                // x=15 is safe GROUND (between Water at x=14 and Socket/Gate at x=16/17).
-
-                // 1. Start Left Edge(x=1, y=25)
-                t(1, 25),
-
-                // 2. Go straight EAST to x=8 (Before Water at x=10)
-                t(8, 25),
-
-                // 3. Divert UP around water (to y=18, above y=20)
-                t(8, 18),
-
-                // 4. Go EAST across top of water (to x=15, safe from Water and Sockets along x=16)
-                t(15, 18),
-
-                // 5. Go DOWN to align with Gate (y=25)
-                // This vertical line x=15, y=18->25 stays right of Water (x=14) and left of Sockets (x=16)
-                t(15, 25),
-
-                // 6. Go EAST through Gate (x=17+) to Center (25, 25)
-                // Passes (16, 25) which is safe ground between Sockets (16,22) and (16,28).
-                center
-            ]
-        };
-    }
-
+    // Helpers
+    // ...
     getLanePath(laneId) {
-        return this.lanes[laneId] || [];
+        return this.lanes[laneId] ? this.lanes[laneId].path : [];
     }
 
     getAllLanes() {

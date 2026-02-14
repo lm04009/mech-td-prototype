@@ -4,7 +4,7 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 # Example:
-  context: |
+context: |
     Tech stack: JavaScript (ES6 Modules), HTML5 Canvas, CSS3
     
     CRITICAL PROJECT RULES:
