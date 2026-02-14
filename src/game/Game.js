@@ -1,3 +1,4 @@
+import { GameState } from './GameState.js';
 import { GameLoop } from '../engine/GameLoop.js';
 import { EventBus } from '../engine/EventBus.js';
 import { InputHandler } from '../engine/Input.js'; // Moved
@@ -29,7 +30,7 @@ export class Game {
         this.input = new InputHandler(canvas);
 
         // Game State
-        this.gameState = 'PLAYING'; // 'PLAYING', 'GAME_OVER', 'GAME_WIN'
+        this.gameState = GameState.PLAYING; // 'PLAYING', 'GAME_OVER', 'GAME_WIN'
         this.credits = 500;
 
         // Entities & Systems (Initialized in reset)
@@ -50,7 +51,7 @@ export class Game {
 
     reset() {
         console.log('Resetting Game...');
-        this.gameState = 'PLAYING';
+        this.gameState = GameState.PLAYING;
         this.credits = 500;
 
         // 1. Map & Core Entities
@@ -92,20 +93,20 @@ export class Game {
     }
 
     onKeyDown(e) {
-        if ((this.gameState === 'GAME_OVER' || this.gameState === 'GAME_WIN') && e.key.toLowerCase() === 'r') {
+        if ((this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN) && e.key.toLowerCase() === 'r') {
             this.reset();
         }
-        if (this.gameState === 'PLAYING' && e.key === 'k') { // Debug Kill, only when playing
+        if (this.gameState === GameState.PLAYING && e.key === 'k') { // Debug Kill, only when playing
             this.terminal.takeDamage(100);
         }
     }
 
     update(dt) {
-        if (this.gameState === 'GAME_OVER' || this.gameState === 'GAME_WIN') return;
+        if (this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN) return;
 
         // 1. Check Loss
         if (this.terminal.hp <= 0 || this.mech.hp <= 0) { // Added Mech HP check for completeness
-            this.gameState = 'GAME_OVER';
+            this.gameState = GameState.GAME_OVER;
             return;
         }
 
@@ -299,11 +300,11 @@ export class Game {
     }
 
     drawUI(ctx) {
-        if (this.gameState === 'GAME_OVER') {
+        if (this.gameState === GameState.GAME_OVER) {
             this.drawGameOver(ctx);
             return;
         }
-        if (this.gameState === 'GAME_WIN') {
+        if (this.gameState === GameState.GAME_WIN) {
             this.drawWinScreen(ctx);
             return;
         }
@@ -338,8 +339,8 @@ export class Game {
     }
 
     triggerWin() {
-        if (this.gameState !== 'PLAYING') return;
-        this.gameState = 'GAME_WIN';
+        if (this.gameState !== GameState.PLAYING) return;
+        this.gameState = GameState.GAME_WIN;
         console.log('VICTORY!');
     }
 

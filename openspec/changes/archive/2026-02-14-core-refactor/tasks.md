@@ -27,7 +27,7 @@
 - [x] 5.2 Verify `requestAnimationFrame` loop is driven by `GameLoop`
 
 ## 6. Verification
-- [ ] 6.1 Verify Map and Terminal render
-- [ ] 6.2 Verify Mech movement and shooting
-- [ ] 6.3 Verify Enemy spawning and pathing
-- [ ] 6.4 Verify Tower construction and firing
+- [x] 6.1 Verify Map and Terminal render
+- [x] 6.2 Verify Mech movement and shooting
+- [x] 6.3 Verify Enemy spawning and pathing
+- [x] 6.4 Verify Tower construction and firing

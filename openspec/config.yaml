@@ -4,10 +4,19 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 # Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+  context: |
+    Tech stack: JavaScript (ES6 Modules), HTML5 Canvas, CSS3
+    
+    CRITICAL PROJECT RULES:
+    1. Zero Tolerance for Deviation
+       - NEVER assume a working prototype is "good enough" if it deviates from the agreed-upon plan or spec.
+       - ALWAYS flag deviations immediately.
+       - If code disagrees with spec, STOP and ask: "Align Code to Spec OR Align Spec to Code?"
+    
+    2. Verification is Mandatory
+       - Verification steps in OpenSpec workflow are REQUIRED.
+       - Never ask to skip verification.
+       - Always perform steps defined in tasks.md.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
