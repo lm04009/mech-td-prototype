@@ -90,7 +90,8 @@ export class GameMap {
             { id: 'NORTH', x: cx, y: 2 },
             { id: 'SOUTH', x: cx, y: this.height - 3 },
             { id: 'EAST', x: this.width - 3, y: cy },
-            { id: 'WEST', x: 2, y: cy } // Far West
+            { id: 'WEST', x: 2, y: cy }, // Far West
+            { id: 'CUSTOM', x: 35, y: 35 } // User Request (SE)
         ];
 
         this.lanes = {};

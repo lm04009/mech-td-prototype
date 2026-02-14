@@ -16,8 +16,38 @@ export class Enemy {
         this.reachedEnd = false;
     }
 
-    update(dt) {
+    update(dt, allEnemies) {
         if (this.markedForDeletion) return;
+
+        // 1. Separation (Avoid Crowding)
+        if (allEnemies) {
+            let separationX = 0;
+            let separationY = 0;
+            let count = 0;
+
+            for (const other of allEnemies) {
+                if (other === this) continue;
+
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                const distSq = dx * dx + dy * dy;
+                const minDist = this.size * 0.8; // Allow slight overlap
+
+                if (distSq < minDist * minDist && distSq > 0.001) {
+                    const dist = Math.sqrt(distSq);
+                    const force = (minDist - dist) / dist; // Stronger closer
+                    separationX += dx * force;
+                    separationY += dy * force;
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                const strength = 100 * dt; // Repulsion strength
+                this.x += (separationX / count) * strength;
+                this.y += (separationY / count) * strength;
+            }
+        }
 
         // Target current waypoint
         const target = this.path[this.waypointIndex];

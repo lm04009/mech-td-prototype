@@ -17,5 +17,26 @@ export const LEVEL_1_ENCOUNTER = [
         count: 15,
         interval: 1.2,
         enemyType: 'BASIC'
+    },
+    {
+        lane: 'NORTH',
+        startTime: 18,
+        count: 10,
+        interval: 1.5,
+        enemyType: 'BASIC'
+    },
+    {
+        lane: 'SOUTH',
+        startTime: 25,
+        count: 10,
+        interval: 1.5,
+        enemyType: 'BASIC'
+    },
+    {
+        lane: 'CUSTOM',
+        startTime: 30, // Late wave
+        count: 20,     // Heavy wave
+        interval: 1.0,
+        enemyType: 'BASIC'
     }
 ];

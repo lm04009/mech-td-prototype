@@ -23,7 +23,7 @@ export class EntityManager {
         // Update Enemies
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
-            enemy.update(dt);
+            enemy.update(dt, this.enemies);
 
             if (enemy.reachedEnd) {
                 terminal.takeDamage(enemy.damage);
