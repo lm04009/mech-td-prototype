@@ -3,6 +3,7 @@ import { EventBus } from '../engine/EventBus.js';
 import { InputHandler } from '../engine/Input.js'; // Moved
 import { EntityManager } from './EntityManager.js';
 import { EncounterManager } from './EncounterManager.js';
+import { CONFIG, LEVEL_1_ENCOUNTER } from './Config.js';
 import { GameMap } from './map.js';
 import { Mech } from './mech.js';
 import { Terminal } from './terminal.js';
@@ -64,6 +65,7 @@ export class Game {
         // 2. Managers
         this.entities = new EntityManager();
         this.encounter = new EncounterManager(this); // Pass game ref (Director needs it)
+        this.encounter.loadEncounter(LEVEL_1_ENCOUNTER);
 
         // 3. Camera
         this.camera = new Camera(
@@ -148,10 +150,7 @@ export class Game {
         ctx.translate(-this.camera.x, -this.camera.y);
 
         this.map.draw(ctx);
-        // Draw Path (Debug/Visual) - EncounterManager could expose this?
-        // For now, simple line from EncounterManager or calculate it? 
-        // Main.js drew it. Let's keep it simple for now or ask EncounterManager.
-        this.drawPath(ctx);
+        this.drawEncounterOverlay(ctx); // Replaces simple drawPath
 
         this.terminal.draw(ctx);
         this.entities.draw(ctx);
@@ -188,18 +187,49 @@ export class Game {
     }
 
     // Visual Helpers
-    drawPath(ctx) {
-        if (!this.encounter || !this.encounter.defaultPath) return;
-        const path = this.encounter.defaultPath;
+    // Visual Helpers
+    drawEncounterOverlay(ctx) {
+        if (!this.encounter || !this.map) return;
 
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        if (path.length > 0) ctx.moveTo(path[0].x, path[0].y);
-        for (let i = 1; i < path.length; i++) {
-            ctx.lineTo(path[i].x, path[i].y);
-        }
-        ctx.stroke();
+        ctx.save();
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+
+        // 1. Telegraphs (Faded)
+        this.encounter.telegraphLanes.forEach(laneId => {
+            const path = this.map.getLanePath(laneId);
+            if (path.length > 1) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Faded White
+                ctx.setLineDash([10, 10]);
+                ctx.beginPath();
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.stroke();
+            }
+        });
+
+        // 2. Active Lanes (Solid)
+        ctx.setLineDash([]);
+        this.encounter.activeLanes.forEach(laneId => {
+            const path = this.map.getLanePath(laneId);
+            if (path.length > 1) {
+                ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)'; // Reddish
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'red';
+                ctx.beginPath();
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.stroke();
+
+                // Draw Portal at Start
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(path[0].x, path[0].y, 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
+        ctx.restore();
     }
 
     drawGhost(ctx) {

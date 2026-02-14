@@ -25,6 +25,9 @@ export class GameMap {
             this.towers.push(towerRow);
         }
 
+        // Precompute Lanes
+        this.lanes = this.defineLanes();
+
         // Setup Test Level
         this.setupTestLevel();
     }
@@ -190,5 +193,39 @@ export class GameMap {
             ctx.lineTo(this.width * this.tileSize, y * this.tileSize);
         }
         ctx.stroke();
+    }
+
+    defineLanes() {
+        const cx = Math.floor(this.width * this.tileSize / 2); // Center X (Pixel)
+        const cy = Math.floor(this.height * this.tileSize / 2); // Center Y (Pixel)
+
+        // Define paths from Edge -> Center (Terminal)
+        // Note: Coordinates are in Pixels for EncounterManager/Enemies
+        return {
+            NORTH: [
+                { x: cx, y: 0 },
+                { x: cx, y: cy }
+            ],
+            SOUTH: [
+                { x: cx, y: this.height * this.tileSize },
+                { x: cx, y: cy }
+            ],
+            EAST: [
+                { x: this.width * this.tileSize, y: cy },
+                { x: cx, y: cy }
+            ],
+            WEST: [
+                { x: 0, y: cy },
+                { x: cx, y: cy }
+            ]
+        };
+    }
+
+    getLanePath(laneId) {
+        return this.lanes[laneId] || [];
+    }
+
+    getAllLanes() {
+        return this.lanes;
     }
 }

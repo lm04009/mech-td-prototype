@@ -1,37 +1,109 @@
 import { Enemy } from './enemy.js';
+import { CONFIG } from './Config.js'; // You might need to adjust import path
 
 export class EncounterManager {
     constructor(game) {
         this.game = game;
-        this.spawnTimer = 0;
-        this.spawnInterval = 2; // Initial simple interval
-        this.active = true;
+        this.events = []; // Queue
+        this.activePortals = []; // Currently spawning
+        this.activeLanes = new Set(); // For rendering (Solid)
+        this.telegraphLanes = new Set(); // For rendering (Faded)
 
-        // Hardcoded path for v0 (Same as main.js)
-        // This will eventually move to Map or Level Data
-        const cx = (game.map.width * 40) / 2; // TILE_SIZE = 40
-        const cy = (game.map.height * 40) / 2;
+        this.encounterTime = 0;
+        this.gameActive = false;
+    }
 
-        this.defaultPath = [
-            { x: 0, y: cy - (7 * 40) }, // Start Top-Left
-            { x: cx - (8 * 40), y: cy - (7 * 40) }, // Go past water
-            { x: cx - (8 * 40), y: cy }, // Go Down
-            { x: cx, y: cy } // Terminal
-        ];
+    loadEncounter(encounterData) {
+        // Deep copy to avoid mutation issues if we restart
+        this.events = JSON.parse(JSON.stringify(encounterData));
+
+        // Sort by startTime just in case
+        this.events.sort((a, b) => a.startTime - b.startTime);
+
+        this.activePortals = [];
+        this.activeLanes.clear();
+        this.telegraphLanes.clear();
+        this.encounterTime = 0;
+        this.gameActive = true;
+        console.log(`Encounter Loaded. ${this.events.length} events.`);
     }
 
     update(dt) {
-        if (!this.active) return;
+        if (!this.gameActive) return;
 
-        this.spawnTimer += dt;
-        if (this.spawnTimer >= this.spawnInterval) {
-            this.spawnTimer = 0;
-            this.spawnEnemy();
+        this.encounterTime += dt;
+
+        // 1. Check for Telegraphs (Future Events)
+        // Look ahead in the event queue
+        for (const event of this.events) {
+            if (event.startTime - CONFIG.TELEGRAPH_DURATION <= this.encounterTime &&
+                event.startTime > this.encounterTime) {
+                this.telegraphLanes.add(event.lane);
+            }
+        }
+
+        // 2. Check for Activations (Current Events)
+        // We process the queue.
+        while (this.events.length > 0 && this.events[0].startTime <= this.encounterTime) {
+            const event = this.events.shift();
+            this.activatePortal(event);
+        }
+
+        // 3. Update Active Portals
+        for (let i = this.activePortals.length - 1; i >= 0; i--) {
+            const portal = this.activePortals[i];
+
+            portal.timer += dt;
+            if (portal.timer >= portal.interval) {
+                portal.timer = 0;
+                this.spawnEnemy(portal);
+                portal.remaining--;
+            }
+
+            if (portal.remaining <= 0) {
+                // Portal Finished
+                this.activePortals.splice(i, 1);
+                // Note: We don't remove from activeLanes immediately?
+                // For now, let's keep it simple: Path stays active forever (User Request).
+                // So we do nothing to activeLanes.
+                console.log(`Portal ${portal.lane} finished spawning.`);
+            }
         }
     }
 
-    spawnEnemy() {
-        const enemy = new Enemy(this.defaultPath);
+    activatePortal(event) {
+        console.log(`Activating Portal: ${event.lane}`);
+        this.telegraphLanes.delete(event.lane); // No longer just a telegraph
+        this.activeLanes.add(event.lane);       // Now Active
+
+        this.activePortals.push({
+            lane: event.lane,
+            remaining: event.count,
+            timer: 0, // Spawn immediately? Or wait for first interval? Let's spawn immediately at 0.
+            interval: event.interval,
+            enemyType: event.enemyType
+        });
+
+        // Instant spawn first one?
+        // Let's let the update loop handle it naturally (timer starts at 0, if we set timer=interval it spawns instantly)
+        this.activePortals[this.activePortals.length - 1].timer = event.interval;
+    }
+
+    spawnEnemy(portal) {
+        const path = this.game.map.getLanePath(portal.lane);
+        if (!path || path.length === 0) {
+            console.error(`Invalid Path for lane ${portal.lane}`);
+            return;
+        }
+
+        // Clone path for Enemy (since they might modify their tracking index)
+        // Actually Enemy constructor just takes the path array.
+        // We need to ensure Enemy copies it or just reads it.
+        // Looking at Enemy.js (from context), it likely takes the path.
+        // We verified Map definitions are [Start, End].
+        // Enemy needs to walk Start -> End.
+
+        const enemy = new Enemy(path);
         this.game.entities.addEnemy(enemy);
     }
 }
