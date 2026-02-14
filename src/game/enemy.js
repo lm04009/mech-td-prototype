@@ -31,21 +31,36 @@ export class Enemy {
                 const dx = this.x - other.x;
                 const dy = this.y - other.y;
                 const distSq = dx * dx + dy * dy;
-                const minDist = this.size * 0.8; // Allow slight overlap
+
+                // Separation Radius
+                const minDist = this.size * 1.1;
 
                 if (distSq < minDist * minDist && distSq > 0.001) {
                     const dist = Math.sqrt(distSq);
-                    const force = (minDist - dist) / dist; // Stronger closer
-                    separationX += dx * force;
-                    separationY += dy * force;
+                    const force = (minDist - dist) / minDist;
+
+                    // Push away
+                    separationX += (dx / dist) * force;
+                    separationY += (dy / dist) * force;
                     count++;
                 }
             }
 
             if (count > 0) {
-                const strength = 100 * dt; // Repulsion strength
+                // Apply separation force
+                const strength = 80 * dt;
                 this.x += (separationX / count) * strength;
                 this.y += (separationY / count) * strength;
+
+                // Braking: If crowded, slow down 
+                // (Reduces jitter when stacking)
+                if (count > 2) {
+                    this.speed = 30; // Crowded speed
+                } else {
+                    this.speed = 50; // Normal speed
+                }
+            } else {
+                this.speed = 50;
             }
         }
 

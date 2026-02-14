@@ -1,0 +1,29 @@
+# Task: Implement Lane Generator
+
+- [x] Create `LaneGenerator` Class <!-- id: 0 -->
+    - [x] Design Logic (A*, Lerp Scokets, Best Effort)
+    - [x] Implement `src/game/map/LaneGenerator.js` <!-- id: 13 -->
+- [x] Integrate into `GameMap` <!-- id: 4 -->
+    - [x] Update `setupTestLevel` to use Generator <!-- id: 5 -->
+    - [x] Store generated Lanes in Map <!-- id: 6 -->
+- [x] Update `EncounterManager` <!-- id: 7 -->
+    - [x] Use generated Lanes for logic <!-- id: 8 -->
+    - [x] Handle socket unlocking <!-- id: 9 -->
+- [x] Verification <!-- id: 10 -->
+    - [x] Verify paths respect walls/water
+    - [x] Validate console logs (Length, Socket Counts)
+    - [x] Fix `EncounterManager` crash (missing method)
+    - [x] Increase Socket Density (User Feedback)
+- [x] Save Progress <!-- id: 11 -->
+    - [x] Commit and Push to GitHub
+- [x] Revisions <!-- id: 12 -->
+    - [x] Activate All Portals (N/S/E/W)
+    - [x] Add 5th Portal (SOUTH-EAST)
+    - [x] Fix Missing North Portal (Config)
+    - [x] Fix Enemy Jamming (Collision/Separation)
+- [x] Save Revisions <!-- id: 14 -->
+    - [x] Commit and Push to GitHub
+- [x] Archive <!-- id: 15 -->
+    - [x] Check Status
+    - [/] Move Artifacts to Change Folder
+    - [ ] Run Archive Command
