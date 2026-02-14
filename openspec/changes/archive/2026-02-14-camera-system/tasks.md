@@ -1,0 +1,22 @@
+# Tasks: Camera System
+
+- [x] 1. Foundation <!-- id: 0 -->
+    - [x] 1.1 Create `src/game/camera.js` <!-- id: 1 -->
+    - [x] 1.2 Implement `Camera` class with `update(target)` method and clamping <!-- id: 2 -->
+- [x] 2. Map Decoupling <!-- id: 3 -->
+    - [x] 2.1 Update `main.js` to initialize Map with fixed 50x50 size <!-- id: 4 -->
+    - [x] 2.2 Instantiate `Camera` in `main.js` <!-- id: 5 -->
+- [x] 3. Rendering Integration <!-- id: 6 -->
+    - [x] 3.1 Wrap game rendering in `ctx.save()/translate()/restore()` <!-- id: 7 -->
+    - [x] 3.2 Ensure UI stays outside the translated context (Screen Space) <!-- id: 8 -->
+- [x] 4. Input Integration <!-- id: 9 -->
+    - [x] 4.1 Update `InputHandler` to accept `camera` reference (or pass it in) <!-- id: 10 -->
+    - [x] 4.2 Transform `input.mouse` coordinates to World Space before use <!-- id: 11 -->
+- [x] 5. Resize Handling <!-- id: 12 -->
+    - [x] 5.1 Update `resizeCanvas` to update `camera.viewport` dimensions <!-- id: 13 -->
+    - [x] 5.2 Remove `resetGame()` call from resize listener <!-- id: 14 -->
+- [x] 6. Verify <!-- id: 15 -->
+    - [x] 6.1 Verify map is larger than screen <!-- id: 16 -->
+    - [x] 6.2 Verify camera follows mech <!-- id: 17 -->
+    - [x] 6.3 Verify clicking still aims correctly <!-- id: 18 -->
+    - [x] 6.4 Verify resizing window does not reset game <!-- id: 19 -->
