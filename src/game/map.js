@@ -33,6 +33,50 @@ export class GameMap {
 
         // Setup Test Level
         this.setupTestLevel();
+
+        // Pending Sockets Queue (for deferred spawning)
+        this.pendingSockets = [];
+    }
+
+    update(dt, player) {
+        // Process Pending Sockets
+        // If player has moved away, spawn them
+        for (let i = this.pendingSockets.length - 1; i >= 0; i--) {
+            const socket = this.pendingSockets[i];
+
+            // Define Socket Rect
+            const socketRect = {
+                x: socket.x * this.tileSize,
+                y: socket.y * this.tileSize,
+                width: this.tileSize,
+                height: this.tileSize
+            };
+
+            // Player Circle
+            const playerCircle = {
+                x: player.x,
+                y: player.y,
+                radius: player.size / 2
+            };
+
+            // Check Collision (Simple Center distance or AABB is enough here)
+            // Using Collision helper logic inline for speed or logic simplicity
+            // Center-to-Center check with generous margin
+            const sx = socketRect.x + this.tileSize / 2;
+            const sy = socketRect.y + this.tileSize / 2;
+            const dx = Math.abs(player.x - sx);
+            const dy = Math.abs(player.y - sy);
+
+            // Combined Radius approx (Player 20 + Socket 20)
+            // If dist < 40, we are touching/overlapping. 
+            // Wait until player is CLEAR (dist > 50 safe margin)
+            if (dx > 40 || dy > 40) {
+                // Clear! Spawn it.
+                this.setTile(socket.x, socket.y, TERRAIN.SOCKET);
+                this.pendingSockets.splice(i, 1);
+                console.log(`Map: Pending socket at ${socket.x},${socket.y} spawned.`);
+            }
+        }
     }
 
     setupTestLevel() {
@@ -132,7 +176,8 @@ export class GameMap {
         for (const s of lane.sockets) {
             // Only unlock if it's currently hidden
             if (this.tiles[s.y][s.x] === TERRAIN.HIDDEN_SOCKET) {
-                this.setTile(s.x, s.y, TERRAIN.SOCKET);
+                // Defer spawning if blocked
+                this.pendingSockets.push({ x: s.x, y: s.y });
             }
         }
     }
@@ -178,27 +223,74 @@ export class GameMap {
     }
 
     isWalkable(worldX, worldY) {
-        const tile = this.getTileAt(worldX, worldY);
-        // Sockets are also walkable by default (unless they have a tower?)
-        // HIDDEN_SOCKET is treated as GROUND implicitly? 
-        // No, current logic: tile === GROUND || tile === SOCKET
-        // If it's HIDDEN_SOCKET, isWalkable() returns false.
-        // This effectively makes it a WALL for movement! 
-        // This is good for "Impassable Sockets" rule? 
-        // Wait, if it's hidden, it looks like ground (assuming we draw it as ground).
-        // If it blocks movement, invisible walls.
-        // User Requirement: "sockets are impassable."
-        // So yes, HIDDEN_SOCKET should probably act as a wall or obstacle.
-        // But if it's invisible, player might get stuck.
-        // For Lane Generation, we treat SOCKET/HIDDEN_SOCKET as obstacles.
-        // For Player movement?
-        // Let's allow player to walk on them for now to avoid frustration, or treat as solid if they are obstacles.
-        // For simplicity: Player can walk on them? Or strictly adhere to "Impassable".
-        // Let's stick to "Impassable" means impassable for enemies.
-        // Player movement collision uses map.isSolid() -> checks WALL.
-        // So player can walk on sockets.
+        const x = Math.floor(worldX / this.tileSize);
+        const y = Math.floor(worldY / this.tileSize);
 
-        return tile === TERRAIN.GROUND || tile === TERRAIN.SOCKET || tile === TERRAIN.HIDDEN_SOCKET;
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return false;
+
+        const tile = this.tiles[y][x];
+        const tower = this.towers[y][x];
+
+        // 1. Check Terrain
+        // Socket = Impassable (Visible)
+        // Hidden Socket = Passable
+        // Ground = Passable
+        if (tile === TERRAIN.SOCKET || tile === TERRAIN.WALL || tile === TERRAIN.WATER) return false;
+
+        // 2. Check Static Objects (Towers)
+        if (tower) return false;
+
+        return true;
+    }
+
+    // Helper to get all obstacles near a rectangle
+    getObstacles(rect) {
+        const obstacles = [];
+
+        // Convert rect to grid bounds (expanded)
+        const startX = Math.floor(rect.x / this.tileSize);
+        const endX = Math.floor((rect.x + rect.width) / this.tileSize);
+        const startY = Math.floor(rect.y / this.tileSize);
+        const endY = Math.floor((rect.y + rect.height) / this.tileSize);
+
+        for (let y = startY; y <= endY; y++) {
+            for (let x = startX; x <= endX; x++) {
+                if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+                    // Out of bounds is solid
+                    obstacles.push({
+                        type: 'WALL',
+                        x: x * this.tileSize,
+                        y: y * this.tileSize,
+                        width: this.tileSize,
+                        height: this.tileSize
+                    });
+                    continue;
+                }
+
+                const tile = this.tiles[y][x];
+                const tower = this.towers[y][x];
+
+                let isSolid = false;
+                let type = 'WALL';
+
+                if (tile === TERRAIN.WALL) isSolid = true;
+                if (tile === TERRAIN.WATER) { isSolid = true; type = 'WATER'; }
+                if (tile === TERRAIN.SOCKET) { isSolid = true; type = 'SOCKET'; } // Visible Sockets are Solid
+
+                if (tower) { isSolid = true; type = 'TOWER'; }
+
+                if (isSolid) {
+                    obstacles.push({
+                        type: type,
+                        x: x * this.tileSize,
+                        y: y * this.tileSize,
+                        width: this.tileSize,
+                        height: this.tileSize
+                    });
+                }
+            }
+        }
+        return obstacles;
     }
 
     // Checks if the tile blocks projectiles (only Walls)

@@ -137,11 +137,12 @@ export class Game {
         const mechInputMouse = { ...mouseWorld };
         if (hoveringSocket) mechInputMouse.isDown = false; // Suppress fire on sockets
 
-        const newProjectile = this.mech.update(dt, movement, mechInputMouse, mouseWorld, this.map);
+        const newProjectile = this.mech.update(dt, movement, mechInputMouse, mouseWorld, this);
         if (newProjectile) this.entities.addProjectile(newProjectile);
 
         // 5. System Updates
         this.camera.follow(this.mech);
+        this.map.update(dt, this.mech); // Process Pending Sockets
         this.encounter.update(dt);
         this.entities.update(dt, this); // Pass Game for context (credits, terminal)
     }
@@ -183,13 +184,57 @@ export class Game {
         const COST = 100;
         if (this.credits < COST) return false;
 
-        if (this.map.isBuildable(col, row)) {
-            const t = new Tower(col, row, this.TILE_SIZE);
-            if (this.map.addTower(t)) {
-                this.entities.addTower(t);
-                this.credits -= COST;
-                return true;
-            }
+        // Check 1: Map Validity (Socket, Empty)
+        if (!this.map.isBuildable(col, row)) return false;
+
+        // Check 2: Entity Validity (Not on top of Player)
+        const tileRect = {
+            x: col * this.TILE_SIZE,
+            y: row * this.TILE_SIZE,
+            width: this.TILE_SIZE,
+            height: this.TILE_SIZE
+        };
+        const playerCircle = {
+            x: this.mech.x,
+            y: this.mech.y,
+            radius: this.mech.size / 2
+        };
+
+        // Use Collision helper if imported, or just simple check?
+        // Game.js doesn't import Collision yet. 
+        // Let's add import or just simple AABB/Circle check here since it's one-off?
+        // Better to import Collision for consistency.
+
+        // Assuming we add import. 
+        // But if I don't add import in this step, it breaks.
+        // Let's do simple check here to save an import if it's the only usage?
+        // No, use Collision.js. I will add import in a separate step or same step if possible.
+        // replace_file_content can't do non-contiguous.
+        // I will use Collision.checkCircleRect fully qualified if imported.
+        // Need to add import first? 
+        // Let's just implement the logic assuming Collision is imported, then add import.
+
+        // Actually, let's just do a quick dist check. 
+        // Box center
+        const cx = tileRect.x + this.TILE_SIZE / 2;
+        const cy = tileRect.y + this.TILE_SIZE / 2;
+        const dx = Math.abs(this.mech.x - cx);
+        const dy = Math.abs(this.mech.y - cy);
+
+        // If dist < (TileHalf + PlayerRadius), overlap.
+        const combined = (this.TILE_SIZE / 2) + (this.mech.size / 2);
+        // Make it strict. If any overlap, deny.
+        if (dx < combined * 0.8 && dy < combined * 0.8) { // 0.8 scale to be forgiving at edges?
+            // Actually, strict is better.
+            console.warn("Cannot build: Player is in the way.");
+            return false;
+        }
+
+        const t = new Tower(col, row, this.TILE_SIZE);
+        if (this.map.addTower(t)) {
+            this.entities.addTower(t);
+            this.credits -= COST;
+            return true;
         }
         return false;
     }

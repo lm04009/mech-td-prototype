@@ -1,0 +1,26 @@
+# Task: Unified Collision System
+
+- [x] Planning
+    - [x] Create OpenSpec change `collision-system-fix` <!-- id: 0 -->
+    - [x] Create Implementation Plan (`implementation_plan.md`) <!-- id: 1 -->
+- [x] Execution
+    - [x] **Phase 1: Foundation** <!-- id: 2 -->
+        - [x] Create `src/engine/Physics.js` (Geometric Checks)
+        - [x] Add `getCollisionBounds()` to base Entity classes (via prototype injection or updates)
+    - [x] **Phase 2: Map Logic** <!-- id: 3 -->
+        - [x] Update `GameMap.js` to expose `getObstacles(rect)`
+        - [x] Acccount for Pending Sockets in `GameMap`
+        - [x] Update `isWalkable` to respect `SOCKET` (Visible) and query `towers` grid
+    - [x] **Phase 3: Entity Integration** <!-- id: 4 -->
+        - [x] Update `Mech.js` use Unified Collision Check
+        - [x] Update `Enemy.js` to use Unified Collision Check
+    - [x] **Phase 4: Interactions** <!-- id: 5 -->
+        - [x] Implement "Pending Spawn" queue in `GameMap`
+        - [x] Prevent building towers on top of Player
+- [x] Verification
+    - [x] Fix Crash in `Mech.checkCollision` (ReferenceError) <!-- id: 11 -->
+    - [x] Verify Walls block Player/Enemies <!-- id: 6 -->
+    - [x] Verify Towers block Player/Enemies <!-- id: 7 -->
+    - [x] Verify Terminal blocks Player/Enemies <!-- id: 8 -->
+    - [x] Verify Enemies block Player (Push/Soft Collide) <!-- id: 9 -->
+    - [x] Verify "Pending Spawn" logic (Sockets wait for player to move) <!-- id: 10 -->

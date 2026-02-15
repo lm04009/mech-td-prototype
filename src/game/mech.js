@@ -1,5 +1,6 @@
 import { Weapon } from './weapon.js';
 import { CONFIG } from './Config.js';
+import { Collision } from '../engine/Collision.js';
 
 export class Mech {
     constructor(x, y) {
@@ -22,7 +23,10 @@ export class Mech {
         this.angle = 0; // Facing angle
     }
 
-    update(dt, inputVector, mousePos, inputState, map) {
+    update(dt, inputVector, mousePos, inputState, game) {
+        const map = game.map;
+        const entities = game.entities;
+
         // Damage Flash
         if (this.damageFlashTimer > 0) {
             this.damageFlashTimer -= dt;
@@ -30,17 +34,37 @@ export class Mech {
 
         // Movement
         if (inputVector.x !== 0 || inputVector.y !== 0) {
-            const nextX = this.x + inputVector.x * this.speed * dt;
-            const nextY = this.y + inputVector.y * this.speed * dt;
+            let dx = inputVector.x * this.speed * dt;
+            let dy = inputVector.y * this.speed * dt;
 
-            // Basic Collision Check (Center Point) for v0
-            // Ideally should check corners, but point check is enough to prove concept
-            if (map.isWalkable(nextX, this.y)) {
-                this.x = nextX;
+            // Iterative Collision Resolution (Slide)
+            // We try to move X, resolve, then move Y, resolve? 
+            // Or move combined and resolve against closest?
+            // "Slide" usually means: projected move -> if hit, project onto tangent.
+
+            // Let's use a multi-pass approach (X then Y) for stability against grid walls
+
+            // 1. Move X
+            let nextX = this.x + dx;
+            let nextY = this.y; // Keep Y same
+
+            if (this.checkCollision(nextX, nextY, game)) {
+                // Collision! Stop X movement.
+                // In a proper physics engine we'd slide, but for top-down grid:
+                // Just zeroing dx is often enough to "slide" along a wall if Y is free.
+                dx = 0;
             }
-            if (map.isWalkable(this.x, nextY)) {
-                this.y = nextY;
+            this.x += dx;
+
+            // 2. Move Y
+            nextX = this.x; // Use new X
+            nextY = this.y + dy;
+
+            if (this.checkCollision(nextX, nextY, game)) {
+                // Collision! Stop Y movement.
+                dy = 0;
             }
+            this.y += dy;
         }
 
         // Face Mouse
@@ -59,6 +83,61 @@ export class Mech {
         }
 
         return null;
+    }
+
+    checkCollision(x, y, game) {
+        const map = game.map;
+        const entities = game.entities;
+        const radius = this.size / 2;
+
+        // 1. Map Obstacles
+        // Optimize: Only check nearby tiles
+        // Bounding box for query
+        const queryRect = {
+            x: x - radius,
+            y: y - radius,
+            width: radius * 2,
+            height: radius * 2
+        };
+
+        const obstacles = map.getObstacles(queryRect);
+
+        // We need a helper to check Circle vs Rect list
+        const myCircle = { x: x, y: y, radius: radius };
+
+        for (const obs of obstacles) {
+            if (Collision.checkCircleRect(myCircle, obs)) {
+                return true;
+            }
+        }
+
+        // 2. Entity Obstacles (Enemies, Terminal)
+        // Enemies
+        if (entities) {
+            for (const enemy of entities.enemies) {
+                if (enemy.hp > 0 && Collision.checkCircleCircle(myCircle, { x: enemy.x, y: enemy.y, radius: enemy.size / 2 })) {
+                    return true;
+                }
+            }
+        }
+
+        // Terminal
+        const term = game.terminal;
+        if (term && term.hp > 0) {
+            // Terminal is large rect?
+            // Terminal.js says: width 60, height 60
+            const termRect = {
+                x: term.x - term.width / 2,
+                y: term.y - term.height / 2,
+                width: term.width,
+                height: term.height
+            };
+            if (Collision.checkCircleRect(myCircle, termRect)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     takeDamage(amount) {

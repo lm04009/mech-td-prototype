@@ -1,4 +1,5 @@
 import { CONFIG } from './Config.js';
+import { Collision } from '../engine/Collision.js';
 
 export class Enemy {
     constructor(path, type = 'BASIC') {
@@ -66,19 +67,34 @@ export class Enemy {
         // 2. Movement Logic (Queueing / Hard Collision)
         let isBlocked = false;
 
+        const myCircle = { x: this.x, y: this.y, radius: this.size / 2 };
+
         // A. Check Blocked by Targets (Mech/Terminal)
         if (potentialTargets) {
             for (const target of potentialTargets) {
                 if (target.hp <= 0) continue;
 
-                const dx = target.x - this.x;
-                const dy = target.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Simple Circle Check using Helper
+                // Target size? Mech has size. Terminal has width/height (Rect).
+                // Let's assume Targets are circular for now (Mech) or we use specific check.
+                // Terminal is Rect. Mech is Circle.
+                // We need to know type or just try both?
+                // For v0, let's treat everything as Circle for Enemy blockage to keep it simple & fast
+                // or use the appropriate check if we can distinguish.
+                // Mech has .size (Circle), Terminal has .width (Rect).
 
-                // My Radius (15) + Target Radius (approx 15-30) + Buffer
-                const collisionRadius = (this.size / 2) + (target.size ? target.size / 2 : 20);
+                let isHit = false;
+                if (target.width && target.height) {
+                    // Rect (Terminal)
+                    const tRect = { x: target.x - target.width / 2, y: target.y - target.height / 2, width: target.width, height: target.height };
+                    isHit = Collision.checkCircleRect(myCircle, tRect);
+                } else if (target.size) {
+                    // Circle (Mech)
+                    const tCircle = { x: target.x, y: target.y, radius: target.size / 2 };
+                    isHit = Collision.checkCircleCircle(myCircle, tCircle);
+                }
 
-                if (dist < collisionRadius) {
+                if (isHit) {
                     isBlocked = true;
                     break;
                 }
@@ -91,49 +107,27 @@ export class Enemy {
             for (const other of allEnemies) {
                 if (other === this) continue;
 
-                const dx = other.x - this.x;
-                const dy = other.y - this.y;
-                const distSq = dx * dx + dy * dy;
-                const minSeparation = this.size; // Hard radius of 30px
+                const otherCircle = { x: other.x, y: other.y, radius: other.size / 2 };
 
-                if (distSq < minSeparation * minSeparation) {
+                // Use slightly larger radius for "separation" feeling? 
+                // Or just hard collision which causes stacking issues if perfect overlap?
+                // Let's use standard collision.
+                if (Collision.checkCircleCircle(myCircle, otherCircle)) {
                     // Overlap detected. Who yields?
-                    // In Blight, the one "behind" yields.
-                    // Simple heuristic: If same waypoint index, rely on array index (Edge Case 1: Head-on).
-                    // If different, the one with lower index (earlier in path) is usually "behind" if logic is 'index 0 is start'.
-                    // Wait, index increases as they move. So HIGHER index is ahead.
-
-                    // Actually, simpler:
-                    // If 'other' is further along the path, I stop.
-                    // If we are identical progress, use ID/Array index to break tie.
-
                     let otherIsAhead = false;
 
                     if (other.waypointIndex > this.waypointIndex) {
                         otherIsAhead = true;
                     } else if (other.waypointIndex === this.waypointIndex) {
-                        // Same waypoint segment. Who is closer to it?
                         const dMe = this.distToWaypoint();
                         const dOther = other.distToWaypoint();
-
-                        // Smaller distance to next waypoint == Closer == Ahead.
                         if (dOther < dMe) {
                             otherIsAhead = true;
                         } else if (Math.abs(dOther - dMe) < 1) {
-                            // Approximately equal (Head-on spawn).
-                            // Tiebreaker: Arbitrary stability based on position in array
-                            // We need a stable order.
-                            // If my index > other index, I yield? 
-                            // Let's say higher index yields.
-                            // We don't have indexes passed here easily.
-                            // Assume 'allEnemies' order is stable.
-                            // We can just rely on distance check mostly.
-                            // If exactly zero:
-                            if (distSq === 0) {
-                                // Force yield if I am 'second' effectively
-                                // Random fallback for v0
-                                isBlocked = true;
-                                break;
+                            // Tiebreaker
+                            // We don't have stable ID, but we can use X/Y to break tie deterministically
+                            if (other.x > this.x || (other.x === this.x && other.y > this.y)) {
+                                otherIsAhead = true;
                             }
                         }
                     }
