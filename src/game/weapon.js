@@ -1,10 +1,11 @@
 import { Projectile } from './projectile.js';
 
 export class Weapon {
-    constructor(range, projectileSpeed, color) {
+    constructor(range, projectileSpeed, color, damage) {
         this.range = range;
         this.projectileSpeed = projectileSpeed;
         this.color = color;
+        this.damage = damage || 10;
 
         this.cooldownTime = 0.5; // Seconds
         this.currentCooldown = 0;
@@ -16,7 +17,7 @@ export class Weapon {
         }
     }
 
-    fire(originX, originY, targetX, targetY) {
+    fire(originX, originY, targetX, targetY, faction) {
         // Cooldown Check
         if (this.currentCooldown > 0) {
             return null;
@@ -36,6 +37,12 @@ export class Weapon {
         this.currentCooldown = this.cooldownTime;
         const angle = Math.atan2(dy, dx);
 
-        return new Projectile(originX, originY, angle, this.projectileSpeed, this.range);
+        const p = new Projectile(originX, originY, angle, this.projectileSpeed, this.range, faction, this.damage); // Pass Damage
+        if (faction === 'ENEMY') {
+            p.color = '#ff8800'; // Orange for enemy bullets
+        } else {
+            p.color = this.color;
+        }
+        return p;
     }
 }

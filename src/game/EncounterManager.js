@@ -116,7 +116,7 @@ export class EncounterManager {
         // We verified Map definitions are [Start, End].
         // Enemy needs to walk Start -> End.
 
-        const enemy = new Enemy(path);
+        const enemy = new Enemy(path, portal.enemyType);
         this.game.entities.addEnemy(enemy);
     }
 }

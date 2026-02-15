@@ -1,9 +1,11 @@
 export class Projectile {
-    constructor(x, y, angle, speed, range) {
+    constructor(x, y, angle, speed, range, faction, damage) {
         this.x = x;
         this.y = y;
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
+        this.faction = faction;
+        this.damage = damage || 10;
 
         this.spawnX = x;
         this.spawnY = y;

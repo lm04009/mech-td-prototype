@@ -1,9 +1,12 @@
+import { CONFIG } from './Config.js';
+
 export class Terminal {
     constructor(x, y) {
         this.x = x;
         this.y = y;
         this.width = 60;
         this.height = 60;
+        this.faction = CONFIG.FACTION.PLAYER;
         this.maxHp = 1000;
         this.hp = this.maxHp;
         this.color = '#00ffff'; // Cyan

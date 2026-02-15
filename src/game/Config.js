@@ -1,6 +1,10 @@
 export const CONFIG = {
     TILE_SIZE: 40,
     TELEGRAPH_DURATION: 5, // Seconds
+    FACTION: {
+        PLAYER: 'PLAYER',
+        ENEMY: 'ENEMY'
+    }
 };
 
 export const LEVEL_1_ENCOUNTER = [

@@ -17,17 +17,35 @@ export class EntityManager {
         this.towers.push(tower);
     }
 
+    getTargets(excludingFaction, game) {
+        if (excludingFaction === 'PLAYER') {
+            return this.enemies;
+        }
+        if (excludingFaction === 'ENEMY') {
+            return [game.mech, game.terminal];
+        }
+        return [];
+    }
+
     update(dt, game) {
-        const { map, terminal } = game;
+        const { map, terminal, mech } = game;
 
         // Update Enemies
+        const enemyTargets = this.getTargets('ENEMY', game);
+
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
-            enemy.update(dt, this.enemies);
+            enemy.update(dt, this.enemies, enemyTargets);
 
             if (enemy.reachedEnd) {
-                terminal.takeDamage(enemy.damage);
-                // game.eventBus.emit('TERMINAL_DAMAGED', enemy.damage); // Future
+                // Legacy check, now handled by combat loop?
+                // The new Enemy.update will attack terminal if close.
+                // But for v0 speed, maybe keep the "reachedEnd" flag for despawning?
+                // If enemy reaches end of path, it should STOP and attack terminal.
+                // It shouldn't just "reach end and disappear" unless it deals damage once.
+                // The new logic says: stop and attack.
+                // So "reachedEnd" might need to be removed or repurposed.
+                // Let's rely on Valid Targets for now.
             }
 
             if (enemy.markedForDeletion) {
@@ -41,20 +59,25 @@ export class EntityManager {
             p.update(dt, map);
 
             if (!p.markedForDeletion) {
-                // Collision with enemies
-                for (const enemy of this.enemies) {
-                    const dx = p.x - enemy.x;
-                    const dy = p.y - enemy.y;
+                // Unified Target Retrieval
+                const targets = this.getTargets(p.faction, game);
+
+                for (const target of targets) {
+                    if (target.hp <= 0) continue; // Skip dead
+
+                    const dx = p.x - target.x;
+                    const dy = p.y - target.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
                     // Simple circle collision
-                    if (dist < (p.size + enemy.size / 2)) {
-                        enemy.takeDamage(10); // TODO: Use weapon damage
+                    const targetSize = target.size || (target.width ? target.width / 2 : 15); // Fallback or box approx
+
+                    if (dist < (p.size + targetSize / 2)) {
+                        target.takeDamage(p.damage);
                         p.markedForDeletion = true;
 
-                        if (enemy.hp <= 0) {
-                            game.addCredits(enemy.bounty);
-                            // game.eventBus.emit('ENEMY_KILLED', enemy.bounty);
+                        if (target.hp <= 0) {
+                            if (target.bounty) game.addCredits(target.bounty);
                         }
                         break;
                     }

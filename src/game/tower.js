@@ -75,7 +75,8 @@ export class Tower {
         // Create projectile targeting the current enemy position
         // Ideally we predict movement, but for v0 direct aim is fine.
         const speed = 400;
-        const p = new Projectile(mx, my, this.angle, speed, this.range);
+        // Tower is PLAYER faction
+        const p = new Projectile(mx, my, this.angle, speed, this.range, 'PLAYER', this.damage);
         p.color = '#00ffff'; // Cyan bullets
         return p;
     }

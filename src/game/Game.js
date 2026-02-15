@@ -105,8 +105,15 @@ export class Game {
         if (this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN) return;
 
         // 1. Check Loss
-        if (this.terminal.hp <= 0 || this.mech.hp <= 0) { // Added Mech HP check for completeness
+        // 1. Check Loss
+        if (this.terminal.hp <= 0) {
             this.gameState = GameState.GAME_OVER;
+            this.gameOverReason = 'TERMINAL_DESTROYED';
+            return;
+        }
+        if (this.mech.hp <= 0) {
+            this.gameState = GameState.GAME_OVER;
+            this.gameOverReason = 'MECH_DESTROYED';
             return;
         }
 
@@ -311,9 +318,15 @@ export class Game {
 
         ctx.fillStyle = '#fff';
         ctx.font = '12px Courier New';
-        ctx.fillText(`WASD to Move, Click to Fire`, 10, 20);
+        ctx.fillText(`Wasd to Move, Click to Fire`, 10, 20);
         ctx.fillText(`Hover Socket -> Click to Build (Cost: 100)`, 10, 35);
-        ctx.fillText(`Mech: ${Math.round(this.mech.x)}, ${Math.round(this.mech.y)}`, 10, 50);
+        // ctx.fillText(`Mech: ${Math.round(this.mech.x)}, ${Math.round(this.mech.y)}`, 10, 50); // Debug coords
+
+        // Mech HP
+        ctx.fillStyle = this.mech.hp > 30 ? '#0f0' : '#f00';
+        ctx.fillText(`MECH HP: ${Math.ceil(this.mech.hp)}/${this.mech.maxHp}`, 10, 50);
+
+        ctx.fillStyle = '#fff';
         ctx.fillText(`Enemies: ${this.entities.enemies.length}`, 10, 65);
         ctx.fillText(`Terminal HP: ${this.terminal.hp}/${this.terminal.maxHp}`, 10, 80);
 
@@ -333,7 +346,15 @@ export class Game {
 
         ctx.fillStyle = '#fff';
         ctx.font = '24px Courier New';
-        ctx.fillText('Terminal Destroyed', this.canvas.width / 2, this.canvas.height / 2 + 50);
+
+        let message = 'Mission Failed';
+        if (this.gameOverReason === 'TERMINAL_DESTROYED') {
+            message = 'Terminal Destroyed';
+        } else if (this.gameOverReason === 'MECH_DESTROYED') {
+            message = 'Mech Critical Failure';
+        }
+
+        ctx.fillText(message, this.canvas.width / 2, this.canvas.height / 2 + 50);
         ctx.fillText('Press R to Restart', this.canvas.width / 2, this.canvas.height / 2 + 80);
         ctx.textAlign = 'start';
     }

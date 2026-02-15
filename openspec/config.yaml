@@ -18,6 +18,17 @@ context: |
        - Never ask to skip verification.
        - Always perform steps defined in tasks.md.
 
+    3. Screenshot Protocol (BINDING)
+       - Phase 1: Analyze & Acknowledge (Describe what you see first).
+       - Phase 2: Confirm Understanding (Wait for user confirmation).
+       - Phase 3: Action (Proceed only after confirmation).
+       - FAILURE CONDITION: If you cannot see/read the screenshot, STOP IMMEDIATELY.
+
+constraints:
+  - "NEVER solve a logic problem by deleting or bypassing existing features"
+  - "All new features must be modular. Hard-coding values or logic into specific instances is strictly prohibited."
+  - "Assume all systems will scale. For example, an enemy attack system must support N-types of enemies and M-types of projectiles by default."
+  - "Before providing the code, list three edge cases for this feature and explain how your proposed architecture handles them without breaking existing systems."
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:

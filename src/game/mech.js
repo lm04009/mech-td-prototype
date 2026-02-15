@@ -1,4 +1,5 @@
 import { Weapon } from './weapon.js';
+import { CONFIG } from './Config.js';
 
 export class Mech {
     constructor(x, y) {
@@ -8,14 +9,25 @@ export class Mech {
         this.size = 40;
         this.color = '#00ff00'; // Green for friendlies
 
+        // Damageable Interface
+        this.faction = CONFIG.FACTION.PLAYER;
+        this.maxHp = 100;
+        this.hp = this.maxHp;
+        this.damageFlashTimer = 0;
+
         // Weapons
-        this.weaponLeft = new Weapon(300, 400, '#ffff00'); // Medium Range
+        this.weaponLeft = new Weapon(300, 400, '#ffff00', 15); // Medium Range, 15 Dmg
         // this.weaponRight = ...
 
         this.angle = 0; // Facing angle
     }
 
     update(dt, inputVector, mousePos, inputState, map) {
+        // Damage Flash
+        if (this.damageFlashTimer > 0) {
+            this.damageFlashTimer -= dt;
+        }
+
         // Movement
         if (inputVector.x !== 0 || inputVector.y !== 0) {
             const nextX = this.x + inputVector.x * this.speed * dt;
@@ -43,10 +55,17 @@ export class Mech {
         if (inputState && inputState.isDown) {
             // Try to fire left weapon
             // Weapon mount position is slightly offset, but using center for v0 simplicity
-            return this.weaponLeft.fire(this.x, this.y, mousePos.x, mousePos.y);
+            return this.weaponLeft.fire(this.x, this.y, mousePos.x, mousePos.y, this.faction);
         }
 
         return null;
+    }
+
+    takeDamage(amount) {
+        this.hp -= amount;
+        if (this.hp < 0) this.hp = 0;
+        this.damageFlashTimer = 0.1; // Flash for 100ms
+        return this.hp <= 0;
     }
 
     draw(ctx) {
@@ -65,7 +84,11 @@ export class Mech {
         ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
 
         // Draw Torso (Core)
-        ctx.fillStyle = this.color;
+        if (this.damageFlashTimer > 0) {
+            ctx.fillStyle = '#ffffff'; // White Flash
+        } else {
+            ctx.fillStyle = this.color;
+        }
         ctx.fillRect(-this.size / 3, -this.size / 3, this.size / 1.5, this.size / 1.5);
 
         // Draw Arms (Simple weapon mounts)
