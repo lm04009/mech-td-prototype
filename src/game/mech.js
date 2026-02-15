@@ -88,7 +88,7 @@ export class Mech {
     checkCollision(x, y, game) {
         const map = game.map;
         const entities = game.entities;
-        const radius = this.size / 2;
+        const radius = (this.size / 2) * 0.8; // Reduce collision radius to allow passing through 1-tile gaps
 
         // 1. Map Obstacles
         // Optimize: Only check nearby tiles
