@@ -3,9 +3,10 @@ import { CONFIG } from './Config.js';
 import { Collision } from '../engine/Collision.js';
 
 export class Mech {
-    constructor(x, y) {
+    constructor(x, y, eventBus) {
         this.x = x;
         this.y = y;
+        this.eventBus = eventBus;
         this.speed = 200; // pixels per second
         this.size = 40;
         this.color = '#00ff00'; // Green for friendlies
@@ -144,6 +145,11 @@ export class Mech {
         this.hp -= amount;
         if (this.hp < 0) this.hp = 0;
         this.damageFlashTimer = 0.1; // Flash for 100ms
+
+        if (this.eventBus) {
+            this.eventBus.emit('mech:damage', { hp: this.hp, maxHp: this.maxHp });
+        }
+
         return this.hp <= 0;
     }
 

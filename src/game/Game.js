@@ -10,6 +10,10 @@ import { Mech } from './mech.js';
 import { Terminal } from './terminal.js';
 import { Camera } from './camera.js';
 import { Tower } from './tower.js';
+import { UIManager } from '../ui/UIManager.js';
+import { HUD } from '../ui/components/HUD.js';
+import { GameOverScreen } from '../ui/screens/GameOverScreen.js';
+import { GameWinScreen } from '../ui/screens/GameWinScreen.js';
 
 export class Game {
     constructor(canvas) {
@@ -28,6 +32,12 @@ export class Game {
             () => this.draw()
         );
         this.input = new InputHandler(canvas);
+
+        // UI System
+        this.uiManager = new UIManager(this);
+        this.uiManager.setHUD(new HUD(this.uiManager));
+        this.uiManager.registerScreen('GameOver', new GameOverScreen(this.uiManager));
+        this.uiManager.registerScreen('GameWin', new GameWinScreen(this.uiManager));
 
         // Game State
         this.gameState = GameState.PLAYING; // 'PLAYING', 'GAME_OVER', 'GAME_WIN'
@@ -54,14 +64,22 @@ export class Game {
         this.gameState = GameState.PLAYING;
         this.credits = 500;
 
+        // Reset UI
+        if (this.uiManager) {
+            this.uiManager.hideScreen();
+            this.eventBus.emit('game:reset');
+            // Force HUD update for initial state
+            this.eventBus.emit('credits:change', this.credits);
+        }
+
         // 1. Map & Core Entities
         this.map = new GameMap(this.WORLD_WIDTH_TILES, this.WORLD_HEIGHT_TILES, this.TILE_SIZE);
 
         const cx = (this.map.width * this.TILE_SIZE) / 2;
         const cy = (this.map.height * this.TILE_SIZE) / 2;
 
-        this.mech = new Mech(cx - 100, cy);
-        this.terminal = new Terminal(cx, cy);
+        this.mech = new Mech(cx - 100, cy, this.eventBus);
+        this.terminal = new Terminal(cx, cy, this.eventBus);
 
         // 2. Managers
         this.entities = new EntityManager();
@@ -109,11 +127,13 @@ export class Game {
         if (this.terminal.hp <= 0) {
             this.gameState = GameState.GAME_OVER;
             this.gameOverReason = 'TERMINAL_DESTROYED';
+            this.eventBus.emit('game:over', { reason: this.gameOverReason });
             return;
         }
         if (this.mech.hp <= 0) {
             this.gameState = GameState.GAME_OVER;
             this.gameOverReason = 'MECH_DESTROYED';
+            this.eventBus.emit('game:over', { reason: this.gameOverReason });
             return;
         }
 
@@ -145,6 +165,8 @@ export class Game {
         this.map.update(dt, this.mech); // Process Pending Sockets
         this.encounter.update(dt);
         this.entities.update(dt, this); // Pass Game for context (credits, terminal)
+
+        this.uiManager.update(dt);
     }
 
     draw() {
@@ -171,13 +193,14 @@ export class Game {
 
         ctx.restore();
 
-        // UI Layer
-        this.drawUI(ctx);
+        // UI Layer - Handled by DOM
+        // this.drawUI(ctx);
     }
 
     // Logic Helpers
     addCredits(amount) {
         this.credits += amount;
+        this.eventBus.emit('credits:change', this.credits);
     }
 
     tryBuildTower(col, row) {
@@ -234,6 +257,7 @@ export class Game {
         if (this.map.addTower(t)) {
             this.entities.addTower(t);
             this.credits -= COST;
+            this.eventBus.emit('credits:change', this.credits);
             return true;
         }
         return false;
@@ -408,6 +432,7 @@ export class Game {
         if (this.gameState !== GameState.PLAYING) return;
         this.gameState = GameState.GAME_WIN;
         console.log('VICTORY!');
+        this.eventBus.emit('game:win');
     }
 
     drawWinScreen(ctx) {

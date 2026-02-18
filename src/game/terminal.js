@@ -1,9 +1,10 @@
 import { CONFIG } from './Config.js';
 
 export class Terminal {
-    constructor(x, y) {
+    constructor(x, y, eventBus) {
         this.x = x;
         this.y = y;
+        this.eventBus = eventBus;
         this.width = 60;
         this.height = 60;
         this.faction = CONFIG.FACTION.PLAYER;
@@ -15,6 +16,11 @@ export class Terminal {
     takeDamage(amount) {
         this.hp -= amount;
         if (this.hp < 0) this.hp = 0;
+
+        if (this.eventBus) {
+            this.eventBus.emit('terminal:damage', { hp: this.hp, maxHp: this.maxHp });
+        }
+
         return this.hp <= 0;
     }
 
