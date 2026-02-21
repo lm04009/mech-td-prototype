@@ -14,6 +14,7 @@ import { UIManager } from '../ui/UIManager.js';
 import { HUD } from '../ui/components/HUD.js';
 import { GameOverScreen } from '../ui/screens/GameOverScreen.js';
 import { GameWinScreen } from '../ui/screens/GameWinScreen.js';
+import { PauseScreen } from '../ui/screens/PauseScreen.js';
 
 export class Game {
     constructor(canvas) {
@@ -38,6 +39,7 @@ export class Game {
         this.uiManager.setHUD(new HUD(this.uiManager));
         this.uiManager.registerScreen('GameOver', new GameOverScreen(this.uiManager));
         this.uiManager.registerScreen('GameWin', new GameWinScreen(this.uiManager));
+        this.uiManager.registerScreen('Pause', new PauseScreen(this.uiManager));
 
         // Game State
         this.gameState = GameState.PLAYING; // 'PLAYING', 'GAME_OVER', 'GAME_WIN'
@@ -81,6 +83,10 @@ export class Game {
         this.mech = new Mech(cx - 100, cy, this.eventBus);
         this.terminal = new Terminal(cx, cy, this.eventBus);
 
+        // Emit initial health states for UI sync
+        this.eventBus.emit('mech:damage', { hp: this.mech.hp, maxHp: this.mech.maxHp });
+        this.eventBus.emit('terminal:damage', { hp: this.terminal.hp, maxHp: this.terminal.maxHp });
+
         // 2. Managers
         this.entities = new EntityManager();
         this.encounter = new EncounterManager(this); // Pass game ref (Director needs it)
@@ -111,6 +117,15 @@ export class Game {
     }
 
     onKeyDown(e) {
+        if (e.key === 'Escape') {
+            if (this.gameState === GameState.PLAYING) {
+                this.gameState = GameState.PAUSED;
+                this.uiManager.showScreen('Pause');
+            } else if (this.gameState === GameState.PAUSED) {
+                this.gameState = GameState.PLAYING;
+                this.uiManager.hideScreen();
+            }
+        }
         if ((this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN) && e.key.toLowerCase() === 'r') {
             this.reset();
         }
@@ -120,7 +135,7 @@ export class Game {
     }
 
     update(dt) {
-        if (this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN) return;
+        if (this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN || this.gameState === GameState.PAUSED) return;
 
         // 1. Check Loss
         // 1. Check Loss
