@@ -13,12 +13,20 @@ export class Mech {
 
         // Damageable Interface
         this.faction = CONFIG.FACTION.PLAYER;
-        this.maxHp = 100;
-        this.hp = this.maxHp;
         this.damageFlashTimer = 0;
+        this.destructionSparks = [];
+
+        // Parts
+        this.parts = {
+            body: { name: 'Body', hp: 24, maxHp: 24, defense: 8 },
+            armLeft: { name: 'Arm L', hp: 19, maxHp: 19, defense: 9 },
+            armRight: { name: 'Arm R', hp: 22, maxHp: 22, defense: 12 },
+            legs: { name: 'Legs', hp: 20, maxHp: 20, defense: 10 }
+        };
 
         // Weapons
         this.weaponLeft = new Weapon(300, 400, '#ffff00', 15); // Medium Range, 15 Dmg
+        this.weaponLeft.mountPart = 'armLeft';
         // this.weaponRight = ...
 
         this.angle = 0; // Facing angle
@@ -33,10 +41,23 @@ export class Mech {
             this.damageFlashTimer -= dt;
         }
 
+        // Update Destruction Sparks
+        for (let i = this.destructionSparks.length - 1; i >= 0; i--) {
+            this.destructionSparks[i].timer -= dt;
+            if (this.destructionSparks[i].timer <= 0) {
+                this.destructionSparks.splice(i, 1);
+            }
+        }
+
         // Movement
         if (inputVector.x !== 0 || inputVector.y !== 0) {
-            let dx = inputVector.x * this.speed * dt;
-            let dy = inputVector.y * this.speed * dt;
+            let currentSpeed = this.speed;
+            if (this.parts.legs.hp <= 0) {
+                currentSpeed = Math.floor(this.speed * (5000 / 10000));
+            }
+
+            let dx = inputVector.x * currentSpeed * dt;
+            let dy = inputVector.y * currentSpeed * dt;
 
             // Iterative Collision Resolution (Slide)
             // We try to move X, resolve, then move Y, resolve? 
@@ -78,9 +99,20 @@ export class Mech {
 
         // Fire Input
         if (inputState && inputState.isDown) {
-            // Try to fire left weapon
-            // Weapon mount position is slightly offset, but using center for v0 simplicity
-            return this.weaponLeft.fire(this.x, this.y, mousePos.x, mousePos.y, this.faction);
+            if (this.parts[this.weaponLeft.mountPart].hp > 0) {
+                // Calculate actual barrel coordinates using the same rotation offset as the Canvas
+                const mountOffsetX = -this.size / 2; // Left side
+                const mountOffsetY = -this.size / 2; // Front edge
+
+                // World coordinate transformation (matching ctx.rotate(this.angle + Math.PI / 2))
+                const c = Math.cos(this.angle + Math.PI / 2);
+                const s = Math.sin(this.angle + Math.PI / 2);
+
+                const startX = this.x + (mountOffsetX * c - mountOffsetY * s);
+                const startY = this.y + (mountOffsetX * s + mountOffsetY * c);
+
+                return this.weaponLeft.fire(startX, startY, mousePos.x, mousePos.y, this.faction);
+            }
         }
 
         return null;
@@ -141,16 +173,58 @@ export class Mech {
         return false;
     }
 
-    takeDamage(amount) {
-        this.hp -= amount;
-        if (this.hp < 0) this.hp = 0;
+    processHit(attackStat) {
+        // RNG weighting: Body 1 (12.5%), armLeft 2 (25%), armRight 2 (25%), Legs 3 (37.5%)
+        // Total weight = 8
+        const roll = Math.random() * 8;
+        let targetPart;
+
+        if (roll < 1) targetPart = this.parts.body;
+        else if (roll < 3) targetPart = this.parts.armLeft;
+        else if (roll < 5) targetPart = this.parts.armRight;
+        else targetPart = this.parts.legs;
+
+        const wasDestroyedBefore = targetPart.hp <= 0;
+
+        // Overflow: if target is already destroyed, select randomly from remaining non-destroyed parts (weight 1 each)
+        if (wasDestroyedBefore) {
+            const validParts = Object.values(this.parts).filter(p => p.hp > 0);
+            if (validParts.length > 0) {
+                const rerollIndex = Math.floor(Math.random() * validParts.length);
+                targetPart = validParts[rerollIndex];
+            } else {
+                targetPart = this.parts.body; // Fallback entirely, game is over anyway
+            }
+        }
+
+        const mitigationMultiplier = attackStat / (attackStat + targetPart.defense);
+        const damage = Math.max(1, Math.round(attackStat * mitigationMultiplier));
+
+        targetPart.hp -= damage;
+        if (targetPart.hp < 0) targetPart.hp = 0;
+
+        if (!wasDestroyedBefore && targetPart.hp === 0 && targetPart !== this.parts.body) {
+            let offsetX = 0;
+            let offsetY = 0;
+            if (targetPart === this.parts.armLeft) { offsetX = -this.size / 2 - 5; offsetY = 0; }
+            if (targetPart === this.parts.armRight) { offsetX = this.size / 2 - 5; offsetY = 0; }
+            if (targetPart === this.parts.legs) { offsetX = 0; offsetY = this.size / 4; }
+
+            this.destructionSparks.push({
+                x: offsetX,
+                y: offsetY,
+                timer: 0.5,
+                maxTimer: 0.5
+            });
+        }
+
         this.damageFlashTimer = 0.1; // Flash for 100ms
 
         if (this.eventBus) {
-            this.eventBus.emit('mech:damage', { hp: this.hp, maxHp: this.maxHp });
+            this.eventBus.emit('mech:damage', { hp: this.parts.body.hp, maxHp: this.parts.body.maxHp, parts: this.parts });
         }
 
-        return this.hp <= 0;
+        return this.parts.body.hp <= 0;
     }
 
     draw(ctx) {
@@ -159,10 +233,22 @@ export class Mech {
         ctx.rotate(this.angle + Math.PI / 2); // Adjust so "up" is 0 degrees visual, but atan2 assumes 0 is right.
 
         // Draw Range Indicator (Faint)
-        ctx.strokeStyle = 'rgba(255, 255, 0, 0.2)';
-        ctx.beginPath();
-        ctx.arc(0, 0, this.weaponLeft.range, 0, Math.PI * 2);
-        ctx.stroke();
+        if (this.parts[this.weaponLeft.mountPart].hp > 0) {
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.2)';
+            ctx.beginPath();
+
+            let cx = 0, cy = 0;
+            if (this.weaponLeft.mountPart === 'armLeft') {
+                cx = -this.size / 2;
+                cy = -this.size / 2;
+            } else if (this.weaponLeft.mountPart === 'armRight') {
+                cx = this.size / 2;
+                cy = -this.size / 2;
+            }
+
+            ctx.arc(cx, cy, this.weaponLeft.range, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         // Draw Legs (Darker base)
         ctx.fillStyle = '#004400';
@@ -177,15 +263,55 @@ export class Mech {
         ctx.fillRect(-this.size / 3, -this.size / 3, this.size / 1.5, this.size / 1.5);
 
         // Draw Arms (Simple weapon mounts)
-        ctx.fillStyle = '#00aa00';
         // Left Arm
-        ctx.fillRect(-this.size / 2 - 5, -5, 10, 10);
-        // Right Arm
-        ctx.fillRect(this.size / 2 - 5, -5, 10, 10);
+        if (this.parts.armLeft.hp > 0) {
+            ctx.fillStyle = '#00aa00';
+            ctx.fillRect(-this.size / 2 - 5, -5, 10, 10);
 
-        // Direction Indicator (Yellow notch)
-        ctx.fillStyle = '#ffff00';
-        ctx.fillRect(-2, -this.size / 2, 4, 8);
+            // Draw Weapon
+            if (this.weaponLeft && this.weaponLeft.mountPart === 'armLeft') {
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(-this.size / 2 - 2, -this.size / 2, 4, 15); // Barrel pointing forward
+            }
+        } else {
+            // Destroyed stub
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(-this.size / 2 - 2, -3, 4, 6);
+        }
+
+        // Right Arm
+        if (this.parts.armRight.hp > 0) {
+            ctx.fillStyle = '#00aa00';
+            ctx.fillRect(this.size / 2 - 5, -5, 10, 10);
+
+            // Handled generically in case we add right weapons
+            if (this.weaponRight && this.weaponRight.mountPart === 'armRight') {
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(this.size / 2 - 2, -this.size / 2, 4, 15);
+            }
+        } else {
+            // Destroyed stub
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(this.size / 2 - 2, -3, 4, 6);
+        }
+
+        // Draw Destruction Sparks
+        for (const spark of this.destructionSparks) {
+            const progress = 1.0 - (spark.timer / spark.maxTimer);
+            const r = 5 + (progress * 40); // Expanding radius
+            const alpha = spark.timer / spark.maxTimer; // Fade out
+
+            ctx.fillStyle = `rgba(255, 50, 0, ${alpha * 0.8})`;
+            ctx.beginPath();
+            ctx.arc(spark.x, spark.y, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Core flash
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(spark.x, spark.y, r * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         ctx.restore();
     }

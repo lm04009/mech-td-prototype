@@ -84,7 +84,7 @@ export class Game {
         this.terminal = new Terminal(cx, cy, this.eventBus);
 
         // Emit initial health states for UI sync
-        this.eventBus.emit('mech:damage', { hp: this.mech.hp, maxHp: this.mech.maxHp });
+        this.eventBus.emit('mech:damage', { hp: this.mech.parts.body.hp, maxHp: this.mech.parts.body.maxHp, parts: this.mech.parts });
         this.eventBus.emit('terminal:damage', { hp: this.terminal.hp, maxHp: this.terminal.maxHp });
 
         // 2. Managers
@@ -145,7 +145,7 @@ export class Game {
             this.eventBus.emit('game:over', { reason: this.gameOverReason });
             return;
         }
-        if (this.mech.hp <= 0) {
+        if (this.mech.parts.body.hp <= 0) {
             this.gameState = GameState.GAME_OVER;
             this.gameOverReason = 'MECH_DESTROYED';
             this.eventBus.emit('game:over', { reason: this.gameOverReason });
@@ -407,8 +407,8 @@ export class Game {
         // ctx.fillText(`Mech: ${Math.round(this.mech.x)}, ${Math.round(this.mech.y)}`, 10, 50); // Debug coords
 
         // Mech HP
-        ctx.fillStyle = this.mech.hp > 30 ? '#0f0' : '#f00';
-        ctx.fillText(`MECH HP: ${Math.ceil(this.mech.hp)}/${this.mech.maxHp}`, 10, 50);
+        ctx.fillStyle = this.mech.parts.body.hp > 10 ? '#0f0' : '#f00';
+        ctx.fillText(`MECH HP: ${Math.ceil(this.mech.parts.body.hp)}/${this.mech.parts.body.maxHp}`, 10, 50);
 
         ctx.fillStyle = '#fff';
         ctx.fillText(`Enemies: ${this.entities.enemies.length}`, 10, 65);

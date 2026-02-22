@@ -47,7 +47,8 @@ export class Enemy {
         // 1. Attack Logic
         if (potentialTargets) {
             for (const target of potentialTargets) {
-                if (target.hp <= 0) continue;
+                const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
+                if (isTargetDead) continue;
 
                 const dx = target.x - this.x;
                 const dy = target.y - this.y;
@@ -56,7 +57,11 @@ export class Enemy {
 
                 if (distSq <= rangeSq) {
                     if (this.attackTimer <= 0) {
-                        target.takeDamage(this.damage);
+                        if (target.processHit) {
+                            target.processHit(this.damage);
+                        } else {
+                            target.takeDamage(this.damage);
+                        }
                         this.attackTimer = this.attackCooldown;
                     }
                     break;
@@ -72,7 +77,8 @@ export class Enemy {
         // A. Check Blocked by Targets (Mech/Terminal)
         if (potentialTargets) {
             for (const target of potentialTargets) {
-                if (target.hp <= 0) continue;
+                const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
+                if (isTargetDead) continue;
 
                 // Simple Circle Check using Helper
                 // Target size? Mech has size. Terminal has width/height (Rect).

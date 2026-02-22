@@ -1,9 +1,4 @@
-# mech-core Specification
-
-## Purpose
-TBD - created by archiving change init-v0-prototype. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Mech Parts Structure
 

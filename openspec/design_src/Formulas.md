@@ -23,3 +23,10 @@ $$FinalAttackInterval = floor(Weapon AttackInterval \times \frac{10000}{10000 + 
 
 ## Chance to Hit
 $$Chance\ to\ Hit = \max(\frac{Attacker's\ Accuracy}{10000 + Defender's\ Evasion}, 0.05)$$
+
+## Damage Calculation
+Note: this is a temporary solution.
+**Attack:** The attacker's equipped weapon `Attack` stat (or the enemy's base attack data).
+**Defense:** The `Defense` stat of the specific defender's part that is hit (e.g., Body, Arm L, Arm R, Legs), or the enemy's base defense data.
+$$MitigationMultiplier = \frac{Attack}{Attack + Defense}$$
+$$FinalDamage = \max(1, round(Attack \times MitigationMultiplier))$$

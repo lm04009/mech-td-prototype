@@ -31,18 +31,69 @@ export class HUD extends BaseComponent {
         this.container.style.gridArea = 'top-left';
         this.container.style.pointerEvents = 'none'; // HUD shouldn't block clicks usually
 
-        // Health Bar
-        const hpContainer = document.createElement('div');
-        hpContainer.className = 'health-bar-container';
-        this.healthBar = document.createElement('div');
-        this.healthBar.className = 'health-bar-fill';
-        this.healthBar.style.width = '100%';
-        hpContainer.appendChild(this.healthBar);
+        // Mech Parts Health
+        this.partBars = {};
 
-        const hpLabel = document.createElement('div');
-        hpLabel.textContent = 'MECH INTEGRITY';
-        this.container.appendChild(hpLabel);
-        this.container.appendChild(hpContainer);
+        const partsContainer = document.createElement('div');
+        partsContainer.style.marginBottom = '10px';
+        partsContainer.style.background = 'rgba(0,0,0,0.5)';
+        partsContainer.style.padding = '5px';
+        partsContainer.style.border = '1px solid #444';
+
+        const partsLabel = document.createElement('div');
+        partsLabel.textContent = 'MECH STATUS';
+        partsLabel.style.color = '#fff';
+        partsLabel.style.marginBottom = '5px';
+        partsLabel.style.fontWeight = 'bold';
+        partsContainer.appendChild(partsLabel);
+
+        const partKeys = ['body', 'armLeft', 'armRight', 'legs'];
+        const partNames = ['Body', 'Left Arm', 'Right Arm', 'Legs'];
+
+        partKeys.forEach((key, index) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.marginBottom = '4px';
+
+            const label = document.createElement('div');
+            label.textContent = partNames[index];
+            label.style.width = '80px';
+            label.style.fontSize = '12px';
+            label.style.color = '#ddd';
+
+            const barContainer = document.createElement('div');
+            barContainer.className = 'health-bar-container';
+            barContainer.style.flexGrow = '1';
+            barContainer.style.height = '12px';
+            barContainer.style.margin = '0 5px';
+            barContainer.style.background = '#333';
+
+            const barFill = document.createElement('div');
+            barFill.className = 'health-bar-fill';
+            barFill.style.width = '100%';
+            barFill.style.height = '100%';
+            barFill.style.backgroundColor = '#0f0';
+            barFill.style.transition = 'width 0.2s, background-color 0.2s';
+
+            const textHp = document.createElement('div');
+            textHp.textContent = '--';
+            textHp.style.width = '30px';
+            textHp.style.fontSize = '12px';
+            textHp.style.textAlign = 'right';
+            textHp.style.color = '#fff';
+
+            barContainer.appendChild(barFill);
+            row.appendChild(label);
+            row.appendChild(barContainer);
+            row.appendChild(textHp);
+
+            partsContainer.appendChild(row);
+
+            this.partBars[key] = { fill: barFill, text: textHp };
+        });
+
+        this.container.appendChild(partsContainer);
 
         // Credits
         this.creditsDisplay = document.createElement('div');
@@ -75,10 +126,19 @@ export class HUD extends BaseComponent {
     }
 
     updateHealth(data) {
-        if (!this.healthBar) return;
-        const pct = Math.max(0, (data.hp / data.maxHp) * 100);
-        this.healthBar.style.width = `${pct}%`;
-        this.healthBar.style.backgroundColor = pct > 30 ? '#0f0' : '#f00';
+        if (!this.partBars || !data.parts) return;
+
+        Object.keys(this.partBars).forEach(key => {
+            if (data.parts[key]) {
+                const part = data.parts[key];
+                const pct = Math.max(0, (part.hp / part.maxHp) * 100);
+                const bar = this.partBars[key];
+
+                bar.fill.style.width = `${pct}%`;
+                bar.fill.style.backgroundColor = pct > 50 ? '#0f0' : (pct > 25 ? '#ff0' : '#f00');
+                bar.text.textContent = `${Math.ceil(part.hp)}`;
+            }
+        });
     }
 
     updateCredits(amount) {
@@ -104,8 +164,8 @@ export class HUD extends BaseComponent {
         }
 
         // Fallback init
-        if (game.mech && this.healthBar.style.width === '100%' && game.mech.hp < game.mech.maxHp) {
-            this.updateHealth({ hp: game.mech.hp, maxHp: game.mech.maxHp });
+        if (game.mech && game.mech.parts && this.partBars && this.partBars.body.text.textContent === '--') {
+            this.updateHealth({ parts: game.mech.parts });
         }
 
         if (game.credits !== undefined) {

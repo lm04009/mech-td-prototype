@@ -63,7 +63,8 @@ export class EntityManager {
                 const targets = this.getTargets(p.faction, game);
 
                 for (const target of targets) {
-                    if (target.hp <= 0) continue; // Skip dead
+                    const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
+                    if (isTargetDead) continue; // Skip dead
 
                     const dx = p.x - target.x;
                     const dy = p.y - target.y;
@@ -73,10 +74,15 @@ export class EntityManager {
                     const targetSize = target.size || (target.width ? target.width / 2 : 15); // Fallback or box approx
 
                     if (dist < (p.size + targetSize / 2)) {
-                        target.takeDamage(p.damage);
+                        if (target.processHit) {
+                            target.processHit(p.damage); // mech uses new targeted logic
+                        } else {
+                            target.takeDamage(p.damage); // others take monolithic damage
+                        }
                         p.markedForDeletion = true;
 
-                        if (target.hp <= 0) {
+                        const isTargetDeadAfter = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
+                        if (isTargetDeadAfter) {
                             if (target.bounty) game.addCredits(target.bounty);
                         }
                         break;
