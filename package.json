@@ -1,0 +1,25 @@
+{
+  "name": "mech-td-prototype",
+  "version": "1.0.0",
+  "description": "",
+  "main": "test_lane_gen.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "bake-data": "node scripts/convert-design-data.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lm04009/mech-td-prototype.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lm04009/mech-td-prototype/issues"
+  },
+  "homepage": "https://github.com/lm04009/mech-td-prototype#readme",
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

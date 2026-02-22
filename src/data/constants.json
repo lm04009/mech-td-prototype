@@ -1,0 +1,7 @@
+[
+  {
+    "Name": "IntraBurstInterval",
+    "Value": 50,
+    "Description": "Delay between bullets in a burst (ms)"
+  }
+]

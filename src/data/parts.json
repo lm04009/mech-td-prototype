@@ -1,0 +1,112 @@
+{
+  "Body": [
+    {
+      "ID": 11001,
+      "Name": "Body A",
+      "Defense": 8,
+      "HP": 24,
+      "PowerOutput": 55,
+      "Weight": 12
+    },
+    {
+      "ID": 11002,
+      "Name": "Body B",
+      "Defense": 10,
+      "HP": 27,
+      "PowerOutput": 110,
+      "Weight": 20
+    },
+    {
+      "ID": 11003,
+      "Name": "Body C",
+      "Defense": 11,
+      "HP": 33,
+      "PowerOutput": 130,
+      "Weight": 24
+    },
+    {
+      "ID": 11004,
+      "Name": "Body D",
+      "Defense": 11,
+      "HP": 30,
+      "PowerOutput": 140,
+      "Weight": 22
+    }
+  ],
+  "Arm": [
+    {
+      "ID": 12001,
+      "Name": "Arm A",
+      "Defense": 9,
+      "HP": 19,
+      "AccuracyRatio": 8500,
+      "Weight": 8
+    },
+    {
+      "ID": 12002,
+      "Name": "Arm B",
+      "Defense": 12,
+      "HP": 22,
+      "AccuracyRatio": 8800,
+      "Weight": 18
+    },
+    {
+      "ID": 12003,
+      "Name": "Arm C",
+      "Defense": 14,
+      "HP": 24,
+      "AccuracyRatio": 9000,
+      "Weight": 18
+    },
+    {
+      "ID": 12004,
+      "Name": "Arm D",
+      "Defense": 15,
+      "HP": 22,
+      "AccuracyRatio": 9200,
+      "Weight": 16
+    }
+  ],
+  "Legs": [
+    {
+      "ID": 13001,
+      "Name": "Legs A (Bipedal)",
+      "Defense": 9,
+      "HP": 21,
+      "PowerOutput": 0,
+      "MovementSpeedMod": 0,
+      "Weight": 13,
+      "Type": "normal"
+    },
+    {
+      "ID": 13002,
+      "Name": "Legs B (Caterpillar)",
+      "Defense": 10,
+      "HP": 24,
+      "PowerOutput": 0,
+      "MovementSpeedMod": 1500,
+      "Weight": 18,
+      "Type": "normal"
+    },
+    {
+      "ID": 13003,
+      "Name": "Legs C (Hover)",
+      "Defense": 13,
+      "HP": 26,
+      "PowerOutput": 0,
+      "MovementSpeedMod": -2000,
+      "Weight": 20,
+      "Type": "hover"
+    },
+    {
+      "ID": 13004,
+      "Name": "Legs D ()",
+      "Defense": 14,
+      "HP": 24,
+      "PowerOutput": 0,
+      "MovementSpeedMod": 3500,
+      "Weight": 18,
+      "Type": "normal"
+    }
+  ]
+}

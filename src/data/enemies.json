@@ -1,0 +1,35 @@
+[
+  {
+    "ID": 21001,
+    "Name": "Enemy A",
+    "HP": 15,
+    "Attack": 3,
+    "Defense": 9,
+    "ProjectilesPerRound": 6,
+    "AccuracyRatio": 9000,
+    "RangeMin": 1,
+    "RangeMax": 7
+  },
+  {
+    "ID": 21002,
+    "Name": "Enemy B",
+    "HP": 30,
+    "Attack": 7,
+    "Defense": 10,
+    "ProjectilesPerRound": 1,
+    "AccuracyRatio": 7500,
+    "RangeMin": 1,
+    "RangeMax": 3
+  },
+  {
+    "ID": 21003,
+    "Name": "Enemy C",
+    "HP": 60,
+    "Attack": 15,
+    "Defense": 18,
+    "ProjectilesPerRound": 0,
+    "AccuracyRatio": 6000,
+    "RangeMin": 1,
+    "RangeMax": 1
+  }
+]
