@@ -125,6 +125,17 @@
     text-overflow: ellipsis;
 }
 
+.hud-state-tag {
+    grid-row: 1;
+    grid-column: 3;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-left: auto;
+    align-self: center;
+}
+
 .hud-cooldown-bar {
     grid-row: 2;
     grid-column: 1 / -1;

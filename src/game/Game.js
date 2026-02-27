@@ -170,18 +170,12 @@ export class Game {
         if (!this.input.mouse.isDown) this.clickProcessed = false;
 
         // 4. Mech Update (Weapon Fire)
+        // LMB (isDown) is suppressed on sockets to prevent accidental "fire" context
+        // from the old LMB=fire system. RMB+1+2+3 are NOT suppressed — building is LMB-only.
         const mechInputMouse = { ...mouseWorld };
-        if (hoveringSocket) mechInputMouse.isDown = false; // Suppress fire on sockets
+        if (hoveringSocket) mechInputMouse.isDown = false;
 
-        // Get weapon slot input state (RMB, 1, 2, 3)
         const weaponInput = this.input.getWeaponInputState();
-        // Suppress fire when hovering a buildable socket
-        if (hoveringSocket) {
-            weaponInput.isRightDown = false;
-            weaponInput.key1 = false;
-            weaponInput.key2 = false;
-            weaponInput.key3 = false;
-        }
 
         const newProjectiles = this.mech.update(dt, movement, mechInputMouse, weaponInput, this);
         if (newProjectiles && newProjectiles.length > 0) {

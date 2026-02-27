@@ -176,12 +176,14 @@ export class Mech {
         const dy = target.y - barrel.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Range check: both min and max (in tiles → world pixels)
+        // Range check:
+        // - RangeMax is enforced by the projectile's own travel distance — no cursor gate needed.
+        // - RangeMin IS enforced here: some weapons (e.g. missiles) physically can't fire at
+        //   point-blank targets. The aim point must be outside the dead zone.
         const rangeMaxPixels = weaponData.RangeMax * CONFIG.TILE_SIZE;
         const rangeMinPixels = (weaponData.RangeMin || 1) * CONFIG.TILE_SIZE;
-        if (dist > rangeMaxPixels) return []; // Too far
-        if (dist < rangeMinPixels) return []; // Too close (e.g. missile launchers)
-        const rangePixels = rangeMaxPixels; // Used for projectile travel distance
+        if (dist < rangeMinPixels) return []; // Too close — dead zone (e.g. missile arming distance)
+        const rangePixels = rangeMaxPixels; // Projectile travel distance
 
         const baseAngle = Math.atan2(dy, dx);
         const count = Math.max(1, weaponData.ProjectilesPerRound || 1);
@@ -423,11 +425,50 @@ export class Mech {
             }
         }
 
-        // --- Draw Legs (base) ---
-        ctx.fillStyle = this.parts.legs.hp > 0 ? '#004400' : '#222';
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        // --- Shield active glow ---
+        // Drawn before legs so it sits behind the whole mech body.
+        // Two-layer approach: large shadowBlur for outer halo + filled rect for inner tint.
+        let shieldGlowAlpha = 0;
+        if (this.activeShieldDefenseBonus > 0) {
+            let maxActiveRatio = 0;
+            for (const arm of ['armLeft', 'armRight']) {
+                for (const type of ['grip', 'shoulder']) {
+                    const slot = this.slots[arm][type];
+                    if (slot && slot.isShield && slot.shieldIsActive && this.parts[arm].hp > 0) {
+                        const ratio = slot.shieldActiveMs / CONFIG.SHIELD_ACTIVE_DURATION_MS;
+                        if (ratio > maxActiveRatio) maxActiveRatio = ratio;
+                    }
+                }
+            }
+            shieldGlowAlpha = 0.55 + maxActiveRatio * 0.45; // Range: 0.55 (about to expire) → 1.0 (fresh)
 
-        // --- Draw Torso ---
+            const pad = 8; // How many px larger than the mech body the glow rect is
+            const gx = -(this.size / 2 + pad);
+            const gy = -(this.size / 2 + pad);
+            const gs = this.size + pad * 2;
+
+            // Outer halo via shadowBlur
+            ctx.shadowColor = `rgba(68, 255, 204, ${shieldGlowAlpha})`;
+            ctx.shadowBlur = 40;
+            // Inner tint — semi-transparent cyan fill on the enlarged rect
+            ctx.fillStyle = `rgba(68, 255, 204, ${shieldGlowAlpha * 0.25})`;
+            ctx.fillRect(gx, gy, gs, gs);
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        }
+
+        // --- Draw Legs (base) ---
+        const legsAlive = this.parts.legs.hp > 0;
+        if (legsAlive) {
+            ctx.fillStyle = '#2d7a2d';
+            ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        } else {
+            // Destroyed: same grey stub treatment as arms
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        }
+
+        // --- Draw Torso (no shadowBlur here — glow is handled above) ---
         if (this.damageFlashTimer > 0) {
             ctx.fillStyle = '#ffffff';
         } else {

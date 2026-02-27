@@ -73,10 +73,10 @@ export class HUD extends BaseComponent {
 
         // 4 slots in display order
         const slotConfig = [
-            { arm: 'armLeft', type: 'grip', key: 'RMB', label: 'L-Grip', colorVar: '#ffff00' },
-            { arm: 'armRight', type: 'grip', key: '1', label: 'R-Grip', colorVar: '#00ffff' },
-            { arm: 'armLeft', type: 'shoulder', key: '2', label: 'L-Shldr', colorVar: '#ff8800' },
-            { arm: 'armRight', type: 'shoulder', key: '3', label: 'R-Shldr', colorVar: '#8800ff' },
+            { arm: 'armLeft', type: 'grip', key: 'RMB', label: 'L-Grip', colorVar: '#ffff00', dimColorVar: '#555500' },
+            { arm: 'armRight', type: 'grip', key: '1', label: 'R-Grip', colorVar: '#00ffff', dimColorVar: '#005555' },
+            { arm: 'armLeft', type: 'shoulder', key: '2', label: 'L-Shldr', colorVar: '#ff8800', dimColorVar: '#552c00' },
+            { arm: 'armRight', type: 'shoulder', key: '3', label: 'R-Shldr', colorVar: '#8800ff', dimColorVar: '#300060' },
         ];
 
         slotConfig.forEach(cfg => {
@@ -105,14 +105,20 @@ export class HUD extends BaseComponent {
             cooldownFill.style.background = cfg.colorVar;
             cooldownBar.appendChild(cooldownFill);
 
+            const stateTag = document.createElement('span');
+            stateTag.className = 'hud-state-tag';
+            stateTag.style.display = 'none'; // Hidden for normal weapons
+
             row.appendChild(keyBadge);
             row.appendChild(slotLabel);
             row.appendChild(weaponName);
+            row.appendChild(stateTag);
             row.appendChild(cooldownBar);
             weaponsContainer.appendChild(row);
 
             this.slotEls[`${cfg.arm}_${cfg.type}`] = {
                 name: weaponName,
+                stateTag,
                 cooldownFill,
                 keyBadge,
                 slotLabel,
@@ -248,20 +254,29 @@ export class HUD extends BaseComponent {
 
             // --- Shield slot: auto-cycle, no key needed ---
             if (slot.isShield) {
-                el.keyBadge.style.opacity = '0';   // Hide key badge — no player input involved
+                el.keyBadge.style.opacity = '0';
+                el.stateTag.style.display = 'inline';
                 el.name.textContent = `⬡ ${slot.weaponData.Name}`;
 
                 if (slot.shieldIsActive) {
+                    // Shield is UP — defense bonus active
                     el.name.style.color = '#44ffcc';
-                    // Progress bar: shows remaining active time, drains left to right
+                    el.stateTag.textContent = 'ACTIVE';
+                    el.stateTag.style.color = '#44ffcc';
+                    // Bar drains: full = just became active, empty = window about to expire
+                    // Intuition: "this much active time remaining"
                     const activePct = CONFIG.SHIELD_ACTIVE_DURATION_MS > 0
                         ? Math.max(0, Math.min(100, (slot.shieldActiveMs / CONFIG.SHIELD_ACTIVE_DURATION_MS) * 100))
                         : 0;
                     el.cooldownFill.style.width = `${activePct}%`;
                     el.cooldownFill.style.background = '#44ffcc';
                 } else {
-                    el.name.style.color = '#336655';
-                    // Progress bar: fills as cooldown recovers
+                    // Shield is DOWN — recharging
+                    el.name.style.color = '#446655';
+                    el.stateTag.textContent = 'CHARGING';
+                    el.stateTag.style.color = '#668866';
+                    // Bar fills up: empty = just went on cooldown, full = about to come back
+                    // Intuition: standard recharge fill — "wait for it to fill"
                     const rechargePct = slot.intervalMs > 0
                         ? Math.max(0, Math.min(100, ((slot.intervalMs - slot.shieldCooldownMs) / slot.intervalMs) * 100))
                         : 100;
@@ -272,16 +287,20 @@ export class HUD extends BaseComponent {
             }
 
             // --- Active weapon slot ---
+            el.stateTag.style.display = 'none';
             el.keyBadge.style.opacity = '1';
             el.name.textContent = slot.weaponData.Name;
             el.name.style.color = '#fff';
 
-            // Cooldown bar: drains as weapon recharges (full = on cooldown, empty = ready)
+            // Cooldown bar fills UP as weapon recharges:
+            // 0% = just fired (on cooldown), 100% = ready to fire.
+            // Color: dim while recharging, snaps to full bright when ready.
             const pct = slot.intervalMs > 0
-                ? Math.max(0, Math.min(100, (slot.currentCooldownMs / slot.intervalMs) * 100))
-                : 0;
+                ? Math.max(0, Math.min(100, ((slot.intervalMs - slot.currentCooldownMs) / slot.intervalMs) * 100))
+                : 100;
+            const isReady = pct >= 100;
             el.cooldownFill.style.width = `${pct}%`;
-            el.cooldownFill.style.background = el.colorVar;
+            el.cooldownFill.style.background = isReady ? el.colorVar : el.dimColorVar;
         });
     }
 

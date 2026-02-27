@@ -117,16 +117,34 @@ export class Enemy {
             const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
             if (isTargetDead) continue;
 
-            const dx = target.x - this.x;
-            const dy = target.y - this.y;
-            const distSq = dx * dx + dy * dy;
+            // Distance to target surface — NOT center-to-center.
+            // Larger targets have a closer surface → easier to hit (correct game feel).
+            let distToSurface;
+            if (target.width && target.height) {
+                // Rect target (e.g. Terminal): nearest point on rect edge to enemy center
+                const nearestX = Math.max(target.x - target.width / 2,
+                    Math.min(this.x, target.x + target.width / 2));
+                const nearestY = Math.max(target.y - target.height / 2,
+                    Math.min(this.y, target.y + target.height / 2));
+                const ndx = nearestX - this.x;
+                const ndy = nearestY - this.y;
+                distToSurface = Math.sqrt(ndx * ndx + ndy * ndy);
+            } else {
+                // Circle target (e.g. Mech): center dist minus target radius = dist to surface
+                const targetRadius = (target.size || 30) / 2;
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                distToSurface = Math.max(0, Math.sqrt(dx * dx + dy * dy) - targetRadius);
+            }
 
-            if (distSq <= this.attackRange * this.attackRange) {
+            if (distToSurface <= this.attackRange) {
                 this.attackTimerMs = this.attackIntervalMs;
 
                 if (this.projectilesPerRound > 0) {
-                    // Ranged attack — spawn projectile
-                    const angle = Math.atan2(dy, dx);
+                    // Ranged attack — spawn projectile aimed at target center
+                    const aimDx = target.x - this.x;
+                    const aimDy = target.y - this.y;
+                    const angle = Math.atan2(aimDy, aimDx);
                     const rangePixels = this.attackRange;
                     const p = new Projectile(
                         this.x, this.y,
