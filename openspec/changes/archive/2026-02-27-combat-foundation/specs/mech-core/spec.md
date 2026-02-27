@@ -57,6 +57,7 @@ Each weapon slot MUST be triggered by a distinct, fixed player input.
   - Key `3` → fires `armRight.shoulder`
 - **THEN** only that specific slot attempts to fire
 - **AND** each slot's cooldown timer is independent
+- **AND** weapon key inputs (RMB, 1, 2, 3) MUST NOT be suppressed when the cursor hovers a buildable socket tile — building is LMB-only and weapon fire must remain available at all times
 
 ### Requirement: Data-Driven Mech Initialization
 

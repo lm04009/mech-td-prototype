@@ -21,6 +21,27 @@ If a destroyed part is selected as a target by an attack, the target MUST be re-
 - **AND** each valid part in that pool is given an equal weight of 1
 - **AND** the damage multiplier uses the newly selected part's defense.
 
+### Requirement: Multi-Projectile Weapons
+
+Weapons with `ProjectilesPerRound > 1` MUST spawn the correct number of projectiles per fire event. The firing mode (sequential or simultaneous) is determined by the `SequentialFire` field in `weapons.json` — it is independent of `DeliveryType`, which is a spatial descriptor only.
+
+#### Scenario: Sequential (burst) fire — SequentialFire = 1
+- **WHEN** a weapon with `SequentialFire = 1` fires (e.g., Machinegun A with 6 rounds, Missile Launcher A with 3)
+- **THEN** round 1 is spawned immediately at the moment of player input
+- **AND** the FinalAttackInterval cooldown starts at round 1 (not after the last round)
+- **AND** rounds 2–N are spawned one-by-one, each separated by `IntraBurstInterval` ms (from `constants.json`)
+- **AND** the aimed direction is locked at trigger time — subsequent burst rounds travel the same direction regardless of mech rotation
+- **AND** if the arm is destroyed mid-burst, remaining queued rounds are silently cancelled
+
+#### Scenario: Simultaneous fire — SequentialFire = 0
+- **WHEN** a weapon with `SequentialFire = 0` and `ProjectilesPerRound > 1` fires (e.g., Shotgun A)
+- **THEN** ALL projectiles are spawned at the exact same moment with no intra-burst delay
+
+#### Scenario: Fan delivery (Shotgun)
+- **WHEN** a weapon with `DeliveryType = "Fan"` fires
+- **THEN** projectiles are spread across a defined arc angle (`FAN_SPREAD_DEGREES` from Config)
+- **AND** each projectile carries the same accuracy and damage stats
+
 ## ADDED Requirements
 
 ### Requirement: Unified Combat Resolution
@@ -80,18 +101,40 @@ All entities MUST derive their attack timing from the `TypeAttackInterval` formu
 - **AND** global attack speed modifiers are then applied: `floor(WeaponAttackInterval * 10000 / (10000 + sum(GlobalAttackSpeedMods)))`
 - **AND** the FinalAttackInterval timer MUST start on the first projectile spawn
 
-### Requirement: Multi-Projectile Weapons
+### Requirement: Shield — Automatic Active/Cooldown Cycle
 
-Weapons with `ProjectilesPerRound > 1` MUST spawn the correct number of projectiles per fire event.
+Shields do not require player input. They run an automatic active→cooldown→active cycle independently on each arm they are equipped on.
 
-#### Scenario: Burst fire weapon
-- **WHEN** a weapon with `ProjectilesPerRound = 6` fires (e.g., Machinegun A)
-- **THEN** exactly 6 projectiles are spawned at the moment of firing
+#### Scenario: Shield active window
+- **WHEN** a Shield weapon is equipped on a living arm
+- **THEN** it begins in the active state, providing its `Defense` bonus to the **whole mech** for all incoming hits (not just the arm it is mounted on)
+- **AND** the active window lasts `SHIELD_ACTIVE_DURATION_MS` (currently 5000 ms; TODO: pull from weapon data when field is defined)
+- **AND** the active window is visible to the player via a HUD bar draining and a body glow effect on the mech
 
-#### Scenario: Fan delivery (Shotgun)
-- **WHEN** a weapon with `DeliveryType = "Fan"` fires
-- **THEN** projectiles are spread across a defined arc angle
-- **AND** each projectile carries the same accuracy and damage stats
+#### Scenario: Shield cooldown
+- **WHEN** the active window expires
+- **THEN** the shield enters cooldown for `TypeAttackInterval` ms (from `weapons.json`)
+- **AND** during cooldown the defense bonus is NOT applied
+- **AND** after cooldown expires the shield automatically becomes active again
+
+#### Scenario: Shield defense scope
+- **WHEN** any part of the Mech is hit while one or more shields are active
+- **THEN** each active shield's `Defense` stat is added to the hit part's own Defense before the damage formula runs
+- **AND** multiple active shields stack additively
+
+### Requirement: Enemy Attack Range — Surface Distance
+
+Enemy attack range checks MUST use the distance from the enemy center to the **nearest surface** of the target, not center-to-center distance.
+
+#### Scenario: Melee enemy attacks Terminal
+- **WHEN** a melee enemy reaches the edge of the Terminal (a rectangular target)
+- **THEN** the attack range check uses nearest-point-on-rect distance, not center distance
+- **AND** this ensures melee enemies that physically touch the Terminal edge are within range
+
+#### Scenario: Melee enemy attacks Mech
+- **WHEN** a melee enemy reaches the edge of the Mech (a circular target)
+- **THEN** the attack range check uses `center_distance - target.radius`, not center distance
+- **AND** larger targets are easier to hit (closer surface), not harder
 
 ### Requirement: Data-Driven Enemy Stats
 

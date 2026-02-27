@@ -142,14 +142,17 @@ export class Mech {
     }
 
     /**
-     * Compute the barrel world position for a given arm.
+     * Compute the mount world position for a given arm + slot.
+     * Grip: forward arm tip. Shoulder: rear shoulder mount (matches visual position).
      * @param {'armLeft'|'armRight'} armKey
+     * @param {'grip'|'shoulder'} slotType
      * @returns {{ x: number, y: number }}
      */
-    _barrelPosition(armKey) {
+    _barrelPosition(armKey, slotType = 'grip') {
         const side = armKey === 'armLeft' ? -1 : 1;
         const mountOffsetX = side * this.size / 2;
-        const mountOffsetY = -this.size / 2;
+        // Grip: forward (−size/2). Shoulder: slightly behind mech center (+5) matching draw rect.
+        const mountOffsetY = slotType === 'shoulder' ? 5 : -this.size / 2;
 
         const c = Math.cos(this.angle + Math.PI / 2);
         const s = Math.sin(this.angle + Math.PI / 2);
@@ -163,9 +166,10 @@ export class Mech {
     /**
      * Spawn a single projectile from a slot toward a given angle.
      * Used by both fireSlot (round 1) and the burst tick (rounds 2-N).
+     * @param {'grip'|'shoulder'} slotType - Used to pick the correct mount position
      */
-    _spawnProjectile(armKey, slot, angle) {
-        const barrel = this._barrelPosition(armKey);
+    _spawnProjectile(armKey, slot, angle, slotType = 'grip') {
+        const barrel = this._barrelPosition(armKey, slotType);
         const wd = slot.weaponData;
         const rangePixels = wd.RangeMax * CONFIG.TILE_SIZE;
         const p = new Projectile(
@@ -177,7 +181,12 @@ export class Mech {
             wd.Attack,
             slot.combinedAccuracy
         );
-        p.color = '#ffff00';
+
+        if (wd.Type === 'MissileLauncher') {
+            p.isMissile = true;
+            p.size = 5; // Slightly larger base for arc visibility
+        }
+        p.color = '#ffff00'; // All player projectiles same colour
         return p;
     }
 
@@ -203,7 +212,7 @@ export class Mech {
 
         if (weaponData.DeliveryType === 'Swing') return []; // Deferred
 
-        const barrel = this._barrelPosition(armKey);
+        const barrel = this._barrelPosition(armKey, slotType); // Use correct mount for this slot
         const dx = target.x - barrel.x;
         const dy = target.y - barrel.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -224,22 +233,22 @@ export class Mech {
             const projectiles = [];
             for (let i = 0; i < count; i++) {
                 const angle = baseAngle - spreadRad / 2 + step * i;
-                projectiles.push(this._spawnProjectile(armKey, slot, angle));
+                projectiles.push(this._spawnProjectile(armKey, slot, angle, slotType));
             }
             return projectiles;
         }
 
         // --- Linear burst: fire round 1 now, queue the rest ---
         if (count > 1) {
-            // Arm burst queue with remaining rounds
             slot.burstRemaining = count - 1;
             slot.burstTimerMs = CONFIG.INTRA_BURST_INTERVAL_MS;
             slot.burstAngle = baseAngle;
             slot.burstArm = armKey;
+            slot.burstSlotType = slotType; // Preserve for burst tick rounds
         }
 
         // Fire round 1 immediately
-        return [this._spawnProjectile(armKey, slot, baseAngle)];
+        return [this._spawnProjectile(armKey, slot, baseAngle, slotType)];
     }
 
     update(dt, inputVector, mousePos, inputState, game) {
@@ -332,11 +341,12 @@ export class Mech {
             for (const type of ['grip', 'shoulder']) {
                 const slot = this.slots[arm][type];
                 if (!slot || !slot.isBurst || slot.burstRemaining <= 0) continue;
-                if (this.parts[arm].hp <= 0) { slot.burstRemaining = 0; continue; } // Arm lost mid-burst
+                if (this.parts[arm].hp <= 0) { slot.burstRemaining = 0; continue; }
 
                 slot.burstTimerMs -= dtMs;
                 if (slot.burstTimerMs <= 0) {
-                    newProjectiles.push(this._spawnProjectile(arm, slot, slot.burstAngle));
+                    // Use the stored slotType so busts from shoulder mounts spawn at the right position
+                    newProjectiles.push(this._spawnProjectile(arm, slot, slot.burstAngle, slot.burstSlotType || type));
                     slot.burstRemaining--;
                     slot.burstTimerMs = slot.burstRemaining > 0 ? CONFIG.INTRA_BURST_INTERVAL_MS : 0;
                 }

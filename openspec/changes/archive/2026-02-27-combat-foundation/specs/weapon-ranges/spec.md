@@ -1,13 +1,10 @@
-# weapon-ranges Specification
+# Delta Spec: weapon-ranges (combat-foundation)
 
-## Purpose
-Defines weapon range rules, enforcement mechanisms, visual feedback, mounting constraints, and ballistic delivery behaviour for shoulder weapons.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Explicit Ranges
 
-Weapons are defined primarily by their range properties. Maximum range is enforced by projectile travel distance. Minimum range is enforced as a fire gate for weapons with a physical dead zone.
+Weapons are defined primarily by their range properties, which MUST be enforced for minimum range only. Maximum range is enforced by projectile travel distance, not by a fire gate.
 
 #### Scenario: Range Categories
 - **WHEN** a weapon is defined
@@ -20,7 +17,7 @@ Weapons are defined primarily by their range properties. Maximum range is enforc
 - **AND** the spawned projectile travels at most `RangeMax * TILE_SIZE` pixels before expiring
 - **AND** the range ring shows the effective reach of the projectile, not a fire gate
 
-#### Scenario: Minimum Range Dead Zone
+#### Scenario: Minimum Range Dead Zone (Shoulder Weapons)
 - **WHEN** the player attempts to fire a weapon with `RangeMin > 1`
 - **AND** the cursor's aim point is closer than `RangeMin * TILE_SIZE` pixels from the barrel
 - **THEN** that slot MUST NOT fire
@@ -52,6 +49,8 @@ Weapons MUST be attached to specific arm slots and operate independently.
 - **THEN** weapon key inputs (RMB, 1, 2, 3) MUST NOT be suppressed
 - **AND** only LMB (building/placement) interacts with sockets
 
+## ADDED Requirements
+
 ### Requirement: Range in World Pixels
 
 Weapon range values from `weapons.json` (`RangeMax`, `RangeMin`) are expressed in tiles. They MUST be converted to world pixels for all game logic and rendering.
@@ -60,6 +59,7 @@ Weapon range values from `weapons.json` (`RangeMax`, `RangeMin`) are expressed i
 - **WHEN** a weapon's range is used for projectile lifetime or ring rendering
 - **THEN** `rangePixels = RangeMax * TILE_SIZE`
 - **AND** `minRangePixels = RangeMin * TILE_SIZE`
+- **AND** these conversions are applied consistently in both the fire gate check and the visual ring radius
 
 ### Requirement: Shoulder Weapon Ballistic Delivery
 
@@ -67,17 +67,18 @@ Shoulder-mounted weapons (e.g., Missile Launchers) fire projectiles in a ballist
 
 #### Scenario: Ballistic projectile — terrain bypass
 - **WHEN** a shoulder weapon fires a missile
-- **THEN** the projectile is marked as ballistic and MUST NOT be blocked by walls or solid terrain
+- **THEN** the projectile is marked as a ballistic arc projectile
+- **AND** it MUST NOT be blocked by walls or solid terrain tiles (it flies over them)
 - **AND** only the target at the impact point is affected
 
 #### Scenario: Ballistic projectile — visual representation
 - **WHEN** a ballistic projectile is in flight
-- **THEN** a shadow is drawn at the ground-level position (straight path to impact)
-- **AND** the missile body is drawn offset upward on screen, simulating altitude
+- **THEN** a shadow is drawn at the ground-level position (the straight path to impact)
+- **AND** the missile body is drawn offset upward on screen, simulating altitude (negative screen Y offset)
 - **AND** the missile body shrinks as it ascends and grows as it descends (inverse sine scale: 1.0 → 0.25 at apex → 1.0 at impact)
 - **AND** missile and shadow converge at the impact point
 
 #### Scenario: Ballistic projectile — spawn position
 - **WHEN** a shoulder weapon fires
 - **THEN** the projectile spawns from the shoulder mount position, NOT the grip barrel position
-- **AND** the firing angle is also calculated from the shoulder mount position
+- **AND** the shoulder mount is located at the rear face of the arm, slightly behind the mech center
