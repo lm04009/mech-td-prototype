@@ -1,11 +1,24 @@
 export class Projectile {
-    constructor(x, y, angle, speed, range, faction, damage) {
+    /**
+     * @param {number} x - Spawn world X
+     * @param {number} y - Spawn world Y
+     * @param {number} angle - Direction in radians
+     * @param {number} speed - Speed in pixels/sec
+     * @param {number} range - Max travel distance in pixels
+     * @param {string} faction - 'PLAYER' or 'ENEMY'
+     * @param {number} attackStat - Attacker's Attack stat (for damage formula)
+     * @param {number} accuracyRatio - Combined accuracy (10000-scale, for hit roll)
+     */
+    constructor(x, y, angle, speed, range, faction, attackStat, accuracyRatio) {
         this.x = x;
         this.y = y;
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
         this.faction = faction;
-        this.damage = damage || 10;
+
+        // Combat stats — resolved at collision time by CombatSystem
+        this.attackStat = attackStat ?? 10;
+        this.accuracyRatio = accuracyRatio ?? 9000;
 
         this.spawnX = x;
         this.spawnY = y;
@@ -18,14 +31,12 @@ export class Projectile {
     }
 
     update(dt, map) {
-        // Move
         const dx = this.vx * dt;
         const dy = this.vy * dt;
-
         const nextX = this.x + dx;
         const nextY = this.y + dy;
 
-        // Wall Collision
+        // Wall collision
         if (map && map.isSolid(nextX, nextY)) {
             this.markedForDeletion = true;
             return;
@@ -34,10 +45,7 @@ export class Projectile {
         this.x = nextX;
         this.y = nextY;
 
-        // Track distance
         this.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
-
-        // Check range expiration
         if (this.distanceTraveled >= this.range) {
             this.markedForDeletion = true;
         }

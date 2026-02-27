@@ -4,24 +4,32 @@ export class InputHandler {
             w: false,
             a: false,
             s: false,
-            d: false
+            d: false,
+            '1': false,
+            '2': false,
+            '3': false,
         };
 
         // Mouse State
-        this.mouse = { x: 0, y: 0, isDown: false };
+        this.mouse = { x: 0, y: 0, isDown: false, isRightDown: false };
         this.canvas = canvas;
 
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
 
-        // Mouse Listeners
         window.addEventListener('mousemove', (e) => this.onMouseMove(e));
         window.addEventListener('mousedown', (e) => this.onMouseDown(e));
         window.addEventListener('mouseup', (e) => this.onMouseUp(e));
+        window.addEventListener('contextmenu', (e) => e.preventDefault()); // Suppress RMB context menu
     }
 
     onKeyDown(e) {
         const key = e.key.toLowerCase();
+        // Handle digit keys '1', '2', '3' before toLowerCase mapping
+        if (['1', '2', '3'].includes(e.key) && this.keys.hasOwnProperty(e.key)) {
+            this.keys[e.key] = true;
+            return;
+        }
         if (this.keys.hasOwnProperty(key)) {
             this.keys[key] = true;
         }
@@ -29,6 +37,10 @@ export class InputHandler {
 
     onKeyUp(e) {
         const key = e.key.toLowerCase();
+        if (['1', '2', '3'].includes(e.key) && this.keys.hasOwnProperty(e.key)) {
+            this.keys[e.key] = false;
+            return;
+        }
         if (this.keys.hasOwnProperty(key)) {
             this.keys[key] = false;
         }
@@ -42,14 +54,20 @@ export class InputHandler {
     }
 
     onMouseDown(e) {
-        if (e.button === 0) { // Left click
+        if (e.button === 0) {
             this.mouse.isDown = true;
+        }
+        if (e.button === 2) {
+            this.mouse.isRightDown = true;
         }
     }
 
     onMouseUp(e) {
         if (e.button === 0) {
             this.mouse.isDown = false;
+        }
+        if (e.button === 2) {
+            this.mouse.isRightDown = false;
         }
     }
 
@@ -58,7 +76,8 @@ export class InputHandler {
         return {
             x: this.mouse.x + camera.x,
             y: this.mouse.y + camera.y,
-            isDown: this.mouse.isDown
+            isDown: this.mouse.isDown,
+            isRightDown: this.mouse.isRightDown
         };
     }
 
@@ -79,7 +98,6 @@ export class InputHandler {
         if (this.keys.a) x -= 1;
         if (this.keys.d) x += 1;
 
-        // Normalize if moving diagonally
         if (x !== 0 && y !== 0) {
             const length = Math.sqrt(x * x + y * y);
             x /= length;
@@ -87,5 +105,18 @@ export class InputHandler {
         }
 
         return { x, y };
+    }
+
+    /**
+     * Returns a snapshot of weapon slot input state for this frame.
+     * Used by Mech.update() to decide which slots to fire.
+     */
+    getWeaponInputState() {
+        return {
+            isRightDown: this.mouse.isRightDown,
+            key1: this.keys['1'],
+            key2: this.keys['2'],
+            key3: this.keys['3'],
+        };
     }
 }

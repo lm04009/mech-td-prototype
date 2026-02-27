@@ -1,3 +1,5 @@
+import { CombatSystem } from '../engine/CombatSystem.js';
+
 export class EntityManager {
     constructor() {
         this.enemies = [];
@@ -30,22 +32,16 @@ export class EntityManager {
     update(dt, game) {
         const { map, terminal, mech } = game;
 
-        // Update Enemies
+        // --- Update Enemies ---
         const enemyTargets = this.getTargets('ENEMY', game);
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
-            enemy.update(dt, this.enemies, enemyTargets);
+            const newProjectile = enemy.update(dt, this.enemies, enemyTargets);
 
-            if (enemy.reachedEnd) {
-                // Legacy check, now handled by combat loop?
-                // The new Enemy.update will attack terminal if close.
-                // But for v0 speed, maybe keep the "reachedEnd" flag for despawning?
-                // If enemy reaches end of path, it should STOP and attack terminal.
-                // It shouldn't just "reach end and disappear" unless it deals damage once.
-                // The new logic says: stop and attack.
-                // So "reachedEnd" might need to be removed or repurposed.
-                // Let's rely on Valid Targets for now.
+            // Enemy ranged attacks return a projectile
+            if (newProjectile) {
+                this.projectiles.push(newProjectile);
             }
 
             if (enemy.markedForDeletion) {
@@ -53,38 +49,49 @@ export class EntityManager {
             }
         }
 
-        // Update Projectiles & Collision
+        // --- Update Projectiles & Resolve Hits via CombatSystem ---
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update(dt, map);
 
             if (!p.markedForDeletion) {
-                // Unified Target Retrieval
                 const targets = this.getTargets(p.faction, game);
 
                 for (const target of targets) {
                     const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
-                    if (isTargetDead) continue; // Skip dead
+                    if (isTargetDead) continue;
 
                     const dx = p.x - target.x;
                     const dy = p.y - target.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
+                    const targetRadius = target.size ? target.size / 2 : (target.width ? target.width / 2 : 15);
 
-                    // Simple circle collision
-                    const targetSize = target.size || (target.width ? target.width / 2 : 15); // Fallback or box approx
+                    if (dist < (p.size + targetRadius)) {
+                        // --- Unified hit resolution ---
+                        const result = CombatSystem.resolveHit(p.accuracyRatio, p.attackStat, target);
 
-                    if (dist < (p.size + targetSize / 2)) {
-                        if (target.processHit) {
-                            target.processHit(p.damage); // mech uses new targeted logic
-                        } else {
-                            target.takeDamage(p.damage); // others take monolithic damage
+                        if (result.hit) {
+                            if (target.parts) {
+                                // Structured target (Mech) — apply to specific part
+                                target.applyPartDamage(result.partKey, result.damage);
+                            } else if (target.takeDamage) {
+                                // Terminal or other entity with takeDamage — fires eventBus
+                                target.takeDamage(result.damage);
+                            } else {
+                                // Fallback: direct HP reduction
+                                target.hp = Math.max(0, target.hp - result.damage);
+                                if (target.hp <= 0 && target.markedForDeletion !== undefined) {
+                                    target.markedForDeletion = true;
+                                }
+                            }
+
+                            const isDeadAfter = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
+                            if (isDeadAfter && target.bounty) {
+                                game.addCredits(target.bounty);
+                            }
                         }
+                        // Projectile is consumed whether it hit or missed
                         p.markedForDeletion = true;
-
-                        const isTargetDeadAfter = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
-                        if (isTargetDeadAfter) {
-                            if (target.bounty) game.addCredits(target.bounty);
-                        }
                         break;
                     }
                 }
@@ -95,9 +102,8 @@ export class EntityManager {
             }
         }
 
-        // Update Towers
+        // --- Update Towers ---
         for (const tower of this.towers) {
-            // Towers need enemies to aim/fire
             const projectile = tower.update(dt, this.enemies, map);
             if (projectile) {
                 this.projectiles.push(projectile);

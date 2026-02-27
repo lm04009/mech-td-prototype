@@ -11,7 +11,9 @@ export class Tower {
         this.y = row * tileSize + tileSize / 2;
 
         this.range = 250;
-        this.damage = 25;
+        this.damage = 25; // Legacy — kept for reference
+        this.attackStat = 25;
+        this.accuracyRatio = 9500; // Towers are very accurate
         this.cooldown = 1.0; // Seconds
         this.timer = 0;
 
@@ -66,17 +68,12 @@ export class Tower {
     }
 
     fire() {
-        // Spawn Projectile
-        // Muzzle position (tip of turret)
         const muzzleDist = 20;
         const mx = this.x + Math.cos(this.angle) * muzzleDist;
         const my = this.y + Math.sin(this.angle) * muzzleDist;
 
-        // Create projectile targeting the current enemy position
-        // Ideally we predict movement, but for v0 direct aim is fine.
         const speed = 400;
-        // Tower is PLAYER faction
-        const p = new Projectile(mx, my, this.angle, speed, this.range, 'PLAYER', this.damage);
+        const p = new Projectile(mx, my, this.angle, speed, this.range, 'PLAYER', this.attackStat, this.accuracyRatio);
         p.color = '#00ffff'; // Cyan bullets
         return p;
     }

@@ -2,8 +2,9 @@ import { Enemy } from './enemy.js';
 import { CONFIG } from './Config.js'; // You might need to adjust import path
 
 export class EncounterManager {
-    constructor(game) {
+    constructor(game, dataStore) {
         this.game = game;
+        this.dataStore = dataStore;
         this.events = []; // Queue
         this.activePortals = []; // Currently spawning
         this.activeLanes = new Set(); // For rendering (Solid)
@@ -109,14 +110,14 @@ export class EncounterManager {
             return;
         }
 
-        // Clone path for Enemy (since they might modify their tracking index)
-        // Actually Enemy constructor just takes the path array.
-        // We need to ensure Enemy copies it or just reads it.
-        // Looking at Enemy.js (from context), it likely takes the path.
-        // We verified Map definitions are [Start, End].
-        // Enemy needs to walk Start -> End.
+        // Look up enemy data by name from DataStore
+        const enemyData = this.dataStore ? this.dataStore.getEnemyByName(portal.enemyType) : null;
+        if (!enemyData) {
+            console.error(`[EncounterManager] No enemy data found for type: "${portal.enemyType}"`);
+            return;
+        }
 
-        const enemy = new Enemy(path, portal.enemyType);
+        const enemy = new Enemy(path, enemyData);
         this.game.entities.addEnemy(enemy);
     }
 }

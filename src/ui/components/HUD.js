@@ -1,4 +1,5 @@
 import { BaseComponent } from '../BaseComponent.js';
+import { CONFIG } from '../../game/Config.js';
 
 export class HUD extends BaseComponent {
     constructor(uiManager) {
@@ -7,44 +8,26 @@ export class HUD extends BaseComponent {
         this.creditsDisplay = null;
         this.enemyCountDisplay = null;
         this.terminalHealthDisplay = null;
+        this.slotEls = {}; // weapon slot UI references
     }
 
     onMount(container) {
         container.classList.add('hud-panel');
-        // We might want separate panels for top-left, top-right etc.
-        // For now, let's just make a simple overlay that positions itself?
-        // Actually, CSS Grid in #ui-layer handles layout. 
-        // We should probably mount 3 separate panels? 
-        // Or one HUD component that appends multiple children to different grid areas?
-
-        // Let's try appending children to the main container (which is #ui-layer)
-        // But BaseComponent mounts to a container. 
-        // If UIManager sets HUD, it mounts it to #ui-layer.
-        // So this.container is a div in #ui-layer.
-        // We can style this.container to display: contents or use grid areas directly if it was a direct child.
-        // But it's a div wrapper.
-
-        // Let's make this.container take up the whole grid? 
-        // Or just put specific stats in top-left?
-
-        // Let's implement a "TopLeftPanel" for now.
         this.container.style.gridArea = 'top-left';
-        this.container.style.pointerEvents = 'none'; // HUD shouldn't block clicks usually
+        this.container.style.pointerEvents = 'none';
+        this.container.style.display = 'flex';
+        this.container.style.flexDirection = 'column';
+        this.container.style.gap = '8px';
 
-        // Mech Parts Health
+        // ── MECH STATUS ──────────────────────────────────────────────────────
         this.partBars = {};
 
         const partsContainer = document.createElement('div');
-        partsContainer.style.marginBottom = '10px';
-        partsContainer.style.background = 'rgba(0,0,0,0.5)';
-        partsContainer.style.padding = '5px';
-        partsContainer.style.border = '1px solid #444';
+        partsContainer.className = 'hud-sub-panel';
 
         const partsLabel = document.createElement('div');
         partsLabel.textContent = 'MECH STATUS';
-        partsLabel.style.color = '#fff';
-        partsLabel.style.marginBottom = '5px';
-        partsLabel.style.fontWeight = 'bold';
+        partsLabel.className = 'hud-section-label';
         partsContainer.appendChild(partsLabel);
 
         const partKeys = ['body', 'armLeft', 'armRight', 'legs'];
@@ -52,42 +35,26 @@ export class HUD extends BaseComponent {
 
         partKeys.forEach((key, index) => {
             const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.marginBottom = '4px';
+            row.className = 'hud-bar-row';
 
-            const label = document.createElement('div');
+            const label = document.createElement('span');
             label.textContent = partNames[index];
-            label.style.width = '80px';
-            label.style.fontSize = '12px';
-            label.style.color = '#ddd';
+            label.className = 'hud-bar-label';
 
-            const barContainer = document.createElement('div');
-            barContainer.className = 'health-bar-container';
-            barContainer.style.flexGrow = '1';
-            barContainer.style.height = '12px';
-            barContainer.style.margin = '0 5px';
-            barContainer.style.background = '#333';
+            const barOuter = document.createElement('div');
+            barOuter.className = 'hud-bar-outer';
 
             const barFill = document.createElement('div');
-            barFill.className = 'health-bar-fill';
-            barFill.style.width = '100%';
-            barFill.style.height = '100%';
-            barFill.style.backgroundColor = '#0f0';
-            barFill.style.transition = 'width 0.2s, background-color 0.2s';
+            barFill.className = 'hud-bar-fill';
 
-            const textHp = document.createElement('div');
+            const textHp = document.createElement('span');
+            textHp.className = 'hud-bar-value';
             textHp.textContent = '--';
-            textHp.style.width = '30px';
-            textHp.style.fontSize = '12px';
-            textHp.style.textAlign = 'right';
-            textHp.style.color = '#fff';
 
-            barContainer.appendChild(barFill);
+            barOuter.appendChild(barFill);
             row.appendChild(label);
-            row.appendChild(barContainer);
+            row.appendChild(barOuter);
             row.appendChild(textHp);
-
             partsContainer.appendChild(row);
 
             this.partBars[key] = { fill: barFill, text: textHp };
@@ -95,56 +62,140 @@ export class HUD extends BaseComponent {
 
         this.container.appendChild(partsContainer);
 
-        // Credits
+        // ── WEAPONS PANEL ────────────────────────────────────────────────────
+        const weaponsContainer = document.createElement('div');
+        weaponsContainer.className = 'hud-sub-panel';
+
+        const weaponsLabel = document.createElement('div');
+        weaponsLabel.textContent = 'WEAPONS';
+        weaponsLabel.className = 'hud-section-label';
+        weaponsContainer.appendChild(weaponsLabel);
+
+        // 4 slots in display order
+        const slotConfig = [
+            { arm: 'armLeft', type: 'grip', key: 'RMB', label: 'L-Grip', colorVar: '#ffff00' },
+            { arm: 'armRight', type: 'grip', key: '1', label: 'R-Grip', colorVar: '#00ffff' },
+            { arm: 'armLeft', type: 'shoulder', key: '2', label: 'L-Shldr', colorVar: '#ff8800' },
+            { arm: 'armRight', type: 'shoulder', key: '3', label: 'R-Shldr', colorVar: '#8800ff' },
+        ];
+
+        slotConfig.forEach(cfg => {
+            const row = document.createElement('div');
+            row.className = 'hud-weapon-row';
+
+            const keyBadge = document.createElement('span');
+            keyBadge.className = 'hud-key-badge';
+            keyBadge.textContent = cfg.key;
+            keyBadge.style.borderColor = cfg.colorVar;
+            keyBadge.style.color = cfg.colorVar;
+
+            const slotLabel = document.createElement('span');
+            slotLabel.className = 'hud-weapon-slot-label';
+            slotLabel.textContent = cfg.label;
+            slotLabel.style.color = '#888';
+
+            const weaponName = document.createElement('span');
+            weaponName.className = 'hud-weapon-name';
+            weaponName.textContent = '—';
+
+            const cooldownBar = document.createElement('div');
+            cooldownBar.className = 'hud-cooldown-bar';
+            const cooldownFill = document.createElement('div');
+            cooldownFill.className = 'hud-cooldown-fill';
+            cooldownFill.style.background = cfg.colorVar;
+            cooldownBar.appendChild(cooldownFill);
+
+            row.appendChild(keyBadge);
+            row.appendChild(slotLabel);
+            row.appendChild(weaponName);
+            row.appendChild(cooldownBar);
+            weaponsContainer.appendChild(row);
+
+            this.slotEls[`${cfg.arm}_${cfg.type}`] = {
+                name: weaponName,
+                cooldownFill,
+                keyBadge,
+                slotLabel,
+                ...cfg
+            };
+        });
+
+        this.container.appendChild(weaponsContainer);
+
+        // ── CREDITS & INTEL ──────────────────────────────────────────────────
+        const intelContainer = document.createElement('div');
+        intelContainer.className = 'hud-sub-panel';
+
         this.creditsDisplay = document.createElement('div');
-        this.creditsDisplay.style.marginTop = '10px';
-        this.creditsDisplay.style.color = '#fc0';
-        this.creditsDisplay.style.fontSize = '20px';
+        this.creditsDisplay.className = 'hud-credits';
         this.creditsDisplay.textContent = 'CR: 0';
-        this.container.appendChild(this.creditsDisplay);
 
-        // Enemies
         this.enemyCountDisplay = document.createElement('div');
+        this.enemyCountDisplay.className = 'hud-intel-line';
         this.enemyCountDisplay.textContent = 'Hostiles: 0';
-        this.container.appendChild(this.enemyCountDisplay);
 
-        // Terminal
         this.terminalHealthDisplay = document.createElement('div');
+        this.terminalHealthDisplay.className = 'hud-intel-line';
         this.terminalHealthDisplay.textContent = 'Terminal: 100%';
-        this.container.appendChild(this.terminalHealthDisplay);
 
-        // Event Listeners
-        // We need access to game events.
-        // UIManager > Game > EventBus
+        intelContainer.appendChild(this.creditsDisplay);
+        intelContainer.appendChild(this.enemyCountDisplay);
+        intelContainer.appendChild(this.terminalHealthDisplay);
+        this.container.appendChild(intelContainer);
+
+        // ── CONTROLS HINT ────────────────────────────────────────────────────
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'hud-sub-panel hud-controls';
+
+        const controlsLabel = document.createElement('div');
+        controlsLabel.textContent = 'CONTROLS';
+        controlsLabel.className = 'hud-section-label';
+        controlsContainer.appendChild(controlsLabel);
+
+        const controls = [
+            ['WASD', 'Move'],
+            ['Mouse', 'Aim'],
+            ['RMB', 'L-Grip weapon'],
+            ['1', 'R-Grip weapon'],
+            ['2', 'L-Shoulder weapon'],
+            ['3', 'R-Shoulder weapon'],
+            ['LMB', 'Build tower (on socket)'],
+            ['ESC', 'Pause'],
+        ];
+
+        controls.forEach(([key, desc]) => {
+            const line = document.createElement('div');
+            line.className = 'hud-control-line';
+            line.innerHTML = `<span class="hud-key-inline">${key}</span><span class="hud-control-desc">${desc}</span>`;
+            controlsContainer.appendChild(line);
+        });
+
+        this.container.appendChild(controlsContainer);
+
+        // ── EVENT BUS ────────────────────────────────────────────────────────
         const bus = this.uiManager.game.eventBus;
-
         bus.on('mech:damage', (data) => this.updateHealth(data));
         bus.on('mech:heal', (data) => this.updateHealth(data));
         bus.on('credits:change', (amount) => this.updateCredits(amount));
         bus.on('terminal:damage', (data) => this.updateTerminal(data));
-        bus.on('gameloop:update', (data) => this.updateLoop(data)); // If we need per frame
     }
 
     updateHealth(data) {
         if (!this.partBars || !data.parts) return;
-
         Object.keys(this.partBars).forEach(key => {
             if (data.parts[key]) {
                 const part = data.parts[key];
                 const pct = Math.max(0, (part.hp / part.maxHp) * 100);
                 const bar = this.partBars[key];
-
                 bar.fill.style.width = `${pct}%`;
-                bar.fill.style.backgroundColor = pct > 50 ? '#0f0' : (pct > 25 ? '#ff0' : '#f00');
+                bar.fill.style.backgroundColor = pct > 50 ? '#0f0' : pct > 25 ? '#ff0' : '#f00';
                 bar.text.textContent = `${Math.ceil(part.hp)}`;
             }
         });
     }
 
     updateCredits(amount) {
-        if (this.creditsDisplay) {
-            this.creditsDisplay.textContent = `CR: ${amount}`;
-        }
+        if (this.creditsDisplay) this.creditsDisplay.textContent = `CR: ${amount}`;
     }
 
     updateTerminal(data) {
@@ -155,21 +206,105 @@ export class HUD extends BaseComponent {
         }
     }
 
-    // Polling fallback if events aren't fully ready yet
+    updateWeaponSlots(mech) {
+        if (!mech || !mech.slots) return;
+
+        const slotDefs = [
+            { arm: 'armLeft', type: 'grip' },
+            { arm: 'armRight', type: 'grip' },
+            { arm: 'armLeft', type: 'shoulder' },
+            { arm: 'armRight', type: 'shoulder' },
+        ];
+
+        slotDefs.forEach(({ arm, type }) => {
+            const el = this.slotEls[`${arm}_${type}`];
+            if (!el) return;
+
+            const armAlive = mech.parts[arm].hp > 0;
+            const slot = mech.slots[arm][type];
+
+            // --- Arm destroyed ---
+            if (!armAlive) {
+                el.name.textContent = '✕ DESTROYED';
+                el.name.style.color = '#f00';
+                el.cooldownFill.style.width = '0%';
+                el.cooldownFill.style.background = '#f00';
+                el.keyBadge.style.opacity = '0.15';
+                el.slotLabel.style.color = '#333';
+                return;
+            }
+
+            // --- Empty slot ---
+            if (!slot) {
+                el.name.textContent = '— empty';
+                el.name.style.color = '#444';
+                el.cooldownFill.style.width = '0%';
+                el.keyBadge.style.opacity = '0.2';  // Ghosted — no weapon to fire
+                el.slotLabel.style.color = '#444';
+                return;
+            }
+
+            el.slotLabel.style.color = '#888';
+
+            // --- Shield slot: auto-cycle, no key needed ---
+            if (slot.isShield) {
+                el.keyBadge.style.opacity = '0';   // Hide key badge — no player input involved
+                el.name.textContent = `⬡ ${slot.weaponData.Name}`;
+
+                if (slot.shieldIsActive) {
+                    el.name.style.color = '#44ffcc';
+                    // Progress bar: shows remaining active time, drains left to right
+                    const activePct = CONFIG.SHIELD_ACTIVE_DURATION_MS > 0
+                        ? Math.max(0, Math.min(100, (slot.shieldActiveMs / CONFIG.SHIELD_ACTIVE_DURATION_MS) * 100))
+                        : 0;
+                    el.cooldownFill.style.width = `${activePct}%`;
+                    el.cooldownFill.style.background = '#44ffcc';
+                } else {
+                    el.name.style.color = '#336655';
+                    // Progress bar: fills as cooldown recovers
+                    const rechargePct = slot.intervalMs > 0
+                        ? Math.max(0, Math.min(100, ((slot.intervalMs - slot.shieldCooldownMs) / slot.intervalMs) * 100))
+                        : 100;
+                    el.cooldownFill.style.width = `${rechargePct}%`;
+                    el.cooldownFill.style.background = '#224433';
+                }
+                return;
+            }
+
+            // --- Active weapon slot ---
+            el.keyBadge.style.opacity = '1';
+            el.name.textContent = slot.weaponData.Name;
+            el.name.style.color = '#fff';
+
+            // Cooldown bar: drains as weapon recharges (full = on cooldown, empty = ready)
+            const pct = slot.intervalMs > 0
+                ? Math.max(0, Math.min(100, (slot.currentCooldownMs / slot.intervalMs) * 100))
+                : 0;
+            el.cooldownFill.style.width = `${pct}%`;
+            el.cooldownFill.style.background = el.colorVar;
+        });
+    }
+
+    // Polling update — called every frame via UIManager
     update(dt) {
-        // Can read from game directly if needed
         const game = this.uiManager.game;
+
         if (game.entities) {
             this.enemyCountDisplay.textContent = `Hostiles: ${game.entities.enemies.length}`;
         }
 
-        // Fallback init
+        // Sync health on first frame
         if (game.mech && game.mech.parts && this.partBars && this.partBars.body.text.textContent === '--') {
             this.updateHealth({ parts: game.mech.parts });
         }
 
         if (game.credits !== undefined) {
             this.updateCredits(game.credits);
+        }
+
+        // Weapon slots (polled every frame for cooldown bars)
+        if (game.mech) {
+            this.updateWeaponSlots(game.mech);
         }
     }
 }

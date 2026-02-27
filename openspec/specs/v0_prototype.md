@@ -79,9 +79,9 @@ This is a deliberate departure from PoE‑style skill abstraction.
 
 ### 4.3 Mounting rules (v0)
 
-- One weapon per arm.
-- Left arm and right arm are fired independently.
-- No multi‑weapon mounts in v0.
+- Each arm has two weapon slots: **Grip** (hand weapon) and **Shoulder**.
+- The four slots fire independently on their assigned inputs (RMB, 1, 2, 3).
+- Destroying an arm disables both its Grip and Shoulder slots.
 
 ---
 

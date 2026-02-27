@@ -5,13 +5,12 @@
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none; /* Let clicks pass through unless on active element */
+    pointer-events: none;
     font-family: 'Courier New', monospace;
     color: white;
     text-shadow: 1px 1px 0 #000;
 }
 
-/* Utility to enable clicks on UI elements */
 .pointer-events-auto {
     pointer-events: auto;
 }
@@ -19,37 +18,172 @@
 /* Grid Layout Areas */
 #ui-layer.hud-layout {
     display: grid;
-    grid-template-columns: 250px 1fr 250px;
+    grid-template-columns: 260px 1fr 260px;
     grid-template-rows: auto 1fr auto;
     grid-template-areas:
         "top-left top-center top-right"
         "center-left center center-right"
         "bottom-left bottom-center bottom-right";
-    padding: 20px;
+    padding: 16px;
+    gap: 8px;
 }
 
-/* Components */
+/* ── HUD PANELS ────────────────────────────────────────────────── */
 .hud-panel {
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
+    pointer-events: none;
+}
+
+.hud-sub-panel {
+    background: rgba(0, 0, 0, 0.6);
     border: 1px solid #444;
-    padding: 10px;
-    pointer-events: auto; /* Allow interaction if needed */
+    border-left: 3px solid #666;
+    padding: 8px 10px;
 }
 
-.health-bar-container {
-    width: 100%;
+.hud-section-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+/* ── PART HEALTH BARS ──────────────────────────────────────────── */
+.hud-bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 3px;
+    gap: 6px;
+}
+
+.hud-bar-label {
+    width: 70px;
+    font-size: 11px;
+    color: #ccc;
+    flex-shrink: 0;
+}
+
+.hud-bar-outer {
+    flex-grow: 1;
     height: 10px;
-    background: #333;
+    background: #222;
     border: 1px solid #555;
-    margin-top: 5px;
 }
 
-.health-bar-fill {
+.hud-bar-fill {
     height: 100%;
     background: #0f0;
-    transition: width 0.2s ease-out;
+    transition: width 0.15s ease-out, background-color 0.2s;
 }
 
+.hud-bar-value {
+    width: 28px;
+    font-size: 11px;
+    text-align: right;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+/* ── WEAPON SLOTS ──────────────────────────────────────────────── */
+.hud-weapon-row {
+    display: grid;
+    grid-template-columns: 38px 52px 1fr;
+    grid-template-rows: auto 4px;
+    align-items: center;
+    gap: 0 6px;
+    margin-bottom: 5px;
+}
+
+.hud-key-badge {
+    grid-row: 1;
+    grid-column: 1;
+    font-size: 10px;
+    font-weight: bold;
+    border: 1px solid;
+    padding: 1px 3px;
+    text-align: center;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+}
+
+.hud-weapon-slot-label {
+    grid-row: 1;
+    grid-column: 2;
+    font-size: 10px;
+    color: #666;
+}
+
+.hud-weapon-name {
+    grid-row: 1;
+    grid-column: 3;
+    font-size: 11px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hud-cooldown-bar {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    height: 3px;
+    background: #333;
+    margin-top: 2px;
+}
+
+.hud-cooldown-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.05s linear;
+}
+
+/* ── CREDITS & INTEL ───────────────────────────────────────────── */
+.hud-credits {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fc0;
+    margin-bottom: 4px;
+}
+
+.hud-intel-line {
+    font-size: 12px;
+    color: #ccc;
+    margin-bottom: 2px;
+}
+
+/* ── CONTROLS ──────────────────────────────────────────────────── */
+.hud-controls {
+    border-left-color: #555;
+}
+
+.hud-control-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 11px;
+}
+
+.hud-key-inline {
+    display: inline-block;
+    min-width: 36px;
+    text-align: center;
+    background: #333;
+    border: 1px solid #666;
+    border-radius: 2px;
+    padding: 1px 4px;
+    font-size: 10px;
+    color: #ccc;
+    flex-shrink: 0;
+}
+
+.hud-control-desc {
+    color: #999;
+}
+
+/* ── SHARED SCREEN OVERLAY ─────────────────────────────────────── */
 .screen-overlay {
     position: absolute;
     top: 0;
@@ -61,7 +195,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    pointer-events: auto; /* Block game interaction */
+    pointer-events: auto;
     z-index: 100;
 }
 
@@ -83,6 +217,7 @@
     font-size: 18px;
     text-transform: uppercase;
     transition: all 0.2s;
+    pointer-events: auto;
 }
 
 .btn:hover {

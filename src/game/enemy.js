@@ -1,127 +1,94 @@
 import { CONFIG } from './Config.js';
 import { Collision } from '../engine/Collision.js';
+import { CombatSystem } from '../engine/CombatSystem.js';
+import { Projectile } from './projectile.js';
 
 export class Enemy {
-    constructor(path, type = 'BASIC') {
+    /**
+     * @param {object[]} path - Array of {x, y} waypoints
+     * @param {object} enemyData - Entry from enemies.json
+     */
+    constructor(path, enemyData) {
         this.path = path;
         this.waypointIndex = 0;
         this.x = path[0].x;
         this.y = path[0].y;
         this.faction = CONFIG.FACTION.ENEMY;
 
-        // Stats based on Type
-        if (type === 'BASIC') {
-            this.hp = 50; // Increased to 50 (2 shots from 25dmg tower)
-            this.maxHp = 50;
-            this.speed = 50;
-            this.damage = 10;
-            this.attackCooldown = 1.0;
-            this.attackRange = 50; // Increased to 50 to cover Collision
-            this.color = '#ff0000';
-            this.bounty = 25;
-        } else {
-            // Default Fallback
-            this.hp = 50;
-            this.maxHp = 50;
-            this.speed = 50;
-            this.damage = 10;
-            this.attackCooldown = 1.0;
-            this.attackRange = 50;
-            this.color = '#ff0000';
-            this.bounty = 25;
-        }
+        // Stats from data
+        this.maxHp = enemyData.HP;
+        this.hp = enemyData.HP;
+        this.attackStat = enemyData.Attack;
+        this.defense = enemyData.Defense;
+        this.accuracyRatio = enemyData.AccuracyRatio;
+        this.evasion = 0; // Enemies have no evasion — simplification for v0
 
-        this.attackTimer = 0;
-        this.size = 30; // Radius approx 15
+        // Attack range: RangeMax is in tiles → world pixels
+        this.attackRange = (enemyData.RangeMax ?? 1) * CONFIG.TILE_SIZE;
+
+        // Attack interval from formula (use RangeMax as proxy for now; TypeAttackInterval not yet in enemies.json)
+        // Fall back to a sensible 1000ms default if not specified
+        const baseInterval = enemyData.TypeAttackInterval ?? 1000;
+        this.attackIntervalMs = CombatSystem.calcAttackInterval(baseInterval, 0, []);
+        this.attackTimerMs = 0;
+
+        this.projectilesPerRound = enemyData.ProjectilesPerRound ?? 0;
+
+        // Visual
+        this.speed = 50; // TODO: add speed to enemies.json in a future pass
+        this.size = 30;
+        this.color = this._colorFromEvasion();
+        this.bounty = Math.ceil(enemyData.HP / 3); // Simple bounty proportional to HP
+
         this.markedForDeletion = false;
         this.reachedEnd = false;
+    }
+
+    _colorFromEvasion() {
+        // Simple visual distinction by HP tier
+        if (this.maxHp >= 50) return '#cc0000'; // Heavy — dark red
+        if (this.maxHp >= 25) return '#ff4400'; // Standard — orange-red
+        return '#ff8800';                        // Light — orange
     }
 
     update(dt, allEnemies, potentialTargets) {
         if (this.markedForDeletion) return;
 
-        if (this.attackTimer > 0) {
-            this.attackTimer -= dt;
-        }
+        const dtMs = dt * 1000;
+        if (this.attackTimerMs > 0) this.attackTimerMs -= dtMs;
 
-        // 1. Attack Logic
-        if (potentialTargets) {
-            for (const target of potentialTargets) {
-                const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
-                if (isTargetDead) continue;
+        // 1. Attack Logic — returns projectile or applies direct hit
+        const newProjectile = this._tryAttack(potentialTargets);
 
-                const dx = target.x - this.x;
-                const dy = target.y - this.y;
-                const distSq = dx * dx + dy * dy;
-                const rangeSq = this.attackRange * this.attackRange;
-
-                if (distSq <= rangeSq) {
-                    if (this.attackTimer <= 0) {
-                        if (target.processHit) {
-                            target.processHit(this.damage);
-                        } else {
-                            target.takeDamage(this.damage);
-                        }
-                        this.attackTimer = this.attackCooldown;
-                    }
-                    break;
-                }
-            }
-        }
-
-        // 2. Movement Logic (Queueing / Hard Collision)
+        // 2. Movement / Queuing
         let isBlocked = false;
-
         const myCircle = { x: this.x, y: this.y, radius: this.size / 2 };
 
-        // A. Check Blocked by Targets (Mech/Terminal)
+        // Blocked by targets (Mech / Terminal)?
         if (potentialTargets) {
             for (const target of potentialTargets) {
                 const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
                 if (isTargetDead) continue;
-
-                // Simple Circle Check using Helper
-                // Target size? Mech has size. Terminal has width/height (Rect).
-                // Let's assume Targets are circular for now (Mech) or we use specific check.
-                // Terminal is Rect. Mech is Circle.
-                // We need to know type or just try both?
-                // For v0, let's treat everything as Circle for Enemy blockage to keep it simple & fast
-                // or use the appropriate check if we can distinguish.
-                // Mech has .size (Circle), Terminal has .width (Rect).
 
                 let isHit = false;
                 if (target.width && target.height) {
-                    // Rect (Terminal)
                     const tRect = { x: target.x - target.width / 2, y: target.y - target.height / 2, width: target.width, height: target.height };
                     isHit = Collision.checkCircleRect(myCircle, tRect);
                 } else if (target.size) {
-                    // Circle (Mech)
-                    const tCircle = { x: target.x, y: target.y, radius: target.size / 2 };
-                    isHit = Collision.checkCircleCircle(myCircle, tCircle);
+                    isHit = Collision.checkCircleCircle(myCircle, { x: target.x, y: target.y, radius: target.size / 2 });
                 }
 
-                if (isHit) {
-                    isBlocked = true;
-                    break;
-                }
+                if (isHit) { isBlocked = true; break; }
             }
         }
 
-        // B. Check Blocked by Other Enemies (Queueing)
-        // Only check if not already blocked by a wall/mech
+        // Blocked by other enemies (queueing)?
         if (!isBlocked && allEnemies) {
             for (const other of allEnemies) {
                 if (other === this) continue;
-
-                const otherCircle = { x: other.x, y: other.y, radius: other.size / 2 };
-
-                // Use slightly larger radius for "separation" feeling? 
-                // Or just hard collision which causes stacking issues if perfect overlap?
-                // Let's use standard collision.
-                if (Collision.checkCircleCircle(myCircle, otherCircle)) {
-                    // Overlap detected. Who yields?
+                if (Collision.checkCircleCircle(myCircle, { x: other.x, y: other.y, radius: other.size / 2 })) {
+                    // Yield if other is further ahead on path
                     let otherIsAhead = false;
-
                     if (other.waypointIndex > this.waypointIndex) {
                         otherIsAhead = true;
                     } else if (other.waypointIndex === this.waypointIndex) {
@@ -130,30 +97,70 @@ export class Enemy {
                         if (dOther < dMe) {
                             otherIsAhead = true;
                         } else if (Math.abs(dOther - dMe) < 1) {
-                            // Tiebreaker
-                            // We don't have stable ID, but we can use X/Y to break tie deterministically
-                            if (other.x > this.x || (other.x === this.x && other.y > this.y)) {
-                                otherIsAhead = true;
-                            }
+                            if (other.x > this.x || (other.x === this.x && other.y > this.y)) otherIsAhead = true;
                         }
                     }
-
-                    if (otherIsAhead) {
-                        isBlocked = true;
-                        break;
-                    }
+                    if (otherIsAhead) { isBlocked = true; break; }
                 }
             }
         }
 
-        // Move if not blocked
-        if (!isBlocked) {
-            this.followPath(dt);
+        if (!isBlocked) this.followPath(dt);
+
+        return newProjectile; // May be null — caller (EntityManager) handles adding it
+    }
+
+    _tryAttack(potentialTargets) {
+        if (!potentialTargets || this.attackTimerMs > 0) return null;
+
+        for (const target of potentialTargets) {
+            const isTargetDead = target.parts ? (target.parts.body.hp <= 0) : (target.hp <= 0);
+            if (isTargetDead) continue;
+
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq <= this.attackRange * this.attackRange) {
+                this.attackTimerMs = this.attackIntervalMs;
+
+                if (this.projectilesPerRound > 0) {
+                    // Ranged attack — spawn projectile
+                    const angle = Math.atan2(dy, dx);
+                    const rangePixels = this.attackRange;
+                    const p = new Projectile(
+                        this.x, this.y,
+                        angle,
+                        300,
+                        rangePixels,
+                        this.faction,
+                        this.attackStat,
+                        this.accuracyRatio
+                    );
+                    p.color = '#ff8800';
+                    return p;
+                } else {
+                    // Melee — resolve hit directly via CombatSystem
+                    const result = CombatSystem.resolveHit(this.accuracyRatio, this.attackStat, target);
+                    if (result.hit) {
+                        if (target.parts) {
+                            // Mech — part-targeted damage
+                            target.applyPartDamage(result.partKey, result.damage);
+                        } else if (target.takeDamage) {
+                            // Terminal or other entity with takeDamage (fires eventBus)
+                            target.takeDamage(result.damage);
+                        } else {
+                            target.hp = Math.max(0, target.hp - result.damage);
+                        }
+                    }
+                    return null;
+                }
+            }
         }
+        return null;
     }
 
     distToWaypoint() {
-        // Distance to *current* target waypoint
         const target = this.path[this.waypointIndex];
         const dx = target.x - this.x;
         const dy = target.y - this.y;
@@ -162,7 +169,6 @@ export class Enemy {
 
     followPath(dt) {
         if (this.path.length === 0) return;
-
         const target = this.path[this.waypointIndex];
         const dx = target.x - this.x;
         const dy = target.y - this.y;
@@ -180,21 +186,22 @@ export class Enemy {
         }
     }
 
-    // ... draw/takeDamage ...  
-    takeDamage(amount) {
-        this.hp -= amount;
-        if (this.hp <= 0) {
-            this.markedForDeletion = true;
-        }
+    takeDamage(damage) {
+        // Simple flat damage (for terminal/tower interactions not yet formula-based)
+        this.hp = Math.max(0, this.hp - damage);
+        if (this.hp <= 0) this.markedForDeletion = true;
     }
 
     draw(ctx) {
+        // Body
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
 
-        // HP Bar
-        const hpPct = this.hp / 50;
-        ctx.fillStyle = '#0f0';
-        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2 - 5, this.size * hpPct, 3);
+        // HP bar
+        const hpPct = this.hp / this.maxHp;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2 - 7, this.size, 4);
+        ctx.fillStyle = hpPct > 0.5 ? '#0f0' : hpPct > 0.25 ? '#ff0' : '#f00';
+        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2 - 7, this.size * hpPct, 4);
     }
 }

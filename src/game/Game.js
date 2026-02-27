@@ -17,9 +17,10 @@ import { GameWinScreen } from '../ui/screens/GameWinScreen.js';
 import { PauseScreen } from '../ui/screens/PauseScreen.js';
 
 export class Game {
-    constructor(canvas) {
+    constructor(canvas, dataStore) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        this.dataStore = dataStore;
 
         // Constants
         this.TILE_SIZE = 40;
@@ -80,7 +81,7 @@ export class Game {
         const cx = (this.map.width * this.TILE_SIZE) / 2;
         const cy = (this.map.height * this.TILE_SIZE) / 2;
 
-        this.mech = new Mech(cx - 100, cy, this.eventBus);
+        this.mech = new Mech(cx - 100, cy, this.eventBus, this.dataStore);
         this.terminal = new Terminal(cx, cy, this.eventBus);
 
         // Emit initial health states for UI sync
@@ -89,7 +90,7 @@ export class Game {
 
         // 2. Managers
         this.entities = new EntityManager();
-        this.encounter = new EncounterManager(this); // Pass game ref (Director needs it)
+        this.encounter = new EncounterManager(this, this.dataStore);
         this.encounter.loadEncounter(LEVEL_1_ENCOUNTER);
 
         // 3. Camera
@@ -172,8 +173,20 @@ export class Game {
         const mechInputMouse = { ...mouseWorld };
         if (hoveringSocket) mechInputMouse.isDown = false; // Suppress fire on sockets
 
-        const newProjectile = this.mech.update(dt, movement, mechInputMouse, mouseWorld, this);
-        if (newProjectile) this.entities.addProjectile(newProjectile);
+        // Get weapon slot input state (RMB, 1, 2, 3)
+        const weaponInput = this.input.getWeaponInputState();
+        // Suppress fire when hovering a buildable socket
+        if (hoveringSocket) {
+            weaponInput.isRightDown = false;
+            weaponInput.key1 = false;
+            weaponInput.key2 = false;
+            weaponInput.key3 = false;
+        }
+
+        const newProjectiles = this.mech.update(dt, movement, mechInputMouse, weaponInput, this);
+        if (newProjectiles && newProjectiles.length > 0) {
+            for (const p of newProjectiles) this.entities.addProjectile(p);
+        }
 
         // 5. System Updates
         this.camera.follow(this.mech);
