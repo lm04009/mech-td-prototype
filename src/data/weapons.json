@@ -10,6 +10,7 @@
       "RangeMin": 1,
       "RangeMax": 1,
       "DeliveryType": "Swing",
+      "SequentialFire": 0,
       "TypeAttackInterval": 1000,
       "LocalAttackSpeedMod": 0,
       "Weight": 6
@@ -24,6 +25,7 @@
       "RangeMin": 1,
       "RangeMax": 1,
       "DeliveryType": "Swing",
+      "SequentialFire": 0,
       "TypeAttackInterval": 1000,
       "LocalAttackSpeedMod": -1000,
       "Weight": 9
@@ -38,6 +40,7 @@
       "RangeMin": 1,
       "RangeMax": 4,
       "DeliveryType": "Linear",
+      "SequentialFire": 1,
       "TypeAttackInterval": 1200,
       "LocalAttackSpeedMod": 0,
       "Weight": 10
@@ -52,6 +55,7 @@
       "RangeMin": 1,
       "RangeMax": 4,
       "DeliveryType": "Linear",
+      "SequentialFire": 1,
       "TypeAttackInterval": 1200,
       "LocalAttackSpeedMod": 0,
       "Weight": 10
@@ -66,6 +70,7 @@
       "RangeMin": 1,
       "RangeMax": 1,
       "DeliveryType": "Linear",
+      "SequentialFire": 1,
       "TypeAttackInterval": 1200,
       "LocalAttackSpeedMod": 1000,
       "Weight": 11
@@ -80,6 +85,7 @@
       "RangeMin": 1,
       "RangeMax": 6,
       "DeliveryType": "Linear",
+      "SequentialFire": 0,
       "TypeAttackInterval": 1600,
       "LocalAttackSpeedMod": 0,
       "Weight": 8
@@ -94,6 +100,7 @@
       "RangeMin": 1,
       "RangeMax": 3,
       "DeliveryType": "Fan",
+      "SequentialFire": 0,
       "TypeAttackInterval": 800,
       "LocalAttackSpeedMod": 0,
       "Weight": 12
@@ -110,6 +117,7 @@
       "AccuracyRatio": 0,
       "RangeMin": 1,
       "RangeMax": 1,
+      "SequentialFire": 0,
       "TypeAttackInterval": 2000,
       "LocalAttackSpeedMod": 0,
       "Weight": 8
@@ -124,6 +132,7 @@
       "AccuracyRatio": 0,
       "RangeMin": 1,
       "RangeMax": 1,
+      "SequentialFire": 0,
       "TypeAttackInterval": 2000,
       "LocalAttackSpeedMod": 0,
       "Weight": 16
@@ -138,6 +147,7 @@
       "AccuracyRatio": 6800,
       "RangeMin": 3,
       "RangeMax": 6,
+      "SequentialFire": 1,
       "TypeAttackInterval": 1600,
       "LocalAttackSpeedMod": 0,
       "Weight": 12
@@ -152,6 +162,7 @@
       "AccuracyRatio": 7400,
       "RangeMin": 4,
       "RangeMax": 7,
+      "SequentialFire": 1,
       "TypeAttackInterval": 1600,
       "LocalAttackSpeedMod": 0,
       "Weight": 20
@@ -166,6 +177,7 @@
       "AccuracyRatio": 7600,
       "RangeMin": 3,
       "RangeMax": 7,
+      "SequentialFire": 1,
       "TypeAttackInterval": 1600,
       "LocalAttackSpeedMod": -2000,
       "Weight": 20

@@ -93,13 +93,24 @@ export class Mech {
         );
 
         const isShield = weaponData.Type === 'Shield';
+        // isBurst: fires rounds sequentially with IntraBurstInterval between them.
+        // Driven by SequentialFire flag — independent of DeliveryType (which is spatial only).
+        const isBurst = !isShield
+            && (weaponData.ProjectilesPerRound || 1) > 1
+            && weaponData.SequentialFire === 1;
 
         const slot = {
             weaponData,
             intervalMs,
             combinedAccuracy,
             isShield,
-            currentCooldownMs: 0
+            isBurst,
+            currentCooldownMs: 0,
+            // Burst state (only used when isBurst)
+            burstRemaining: 0,   // rounds still queued
+            burstTimerMs: 0,   // countdown until next burst round
+            burstAngle: 0,   // direction locked at trigger
+            burstArm: null // arm key locked at trigger
         };
 
         if (isShield) {
@@ -107,7 +118,7 @@ export class Mech {
             // TODO: SHIELD_ACTIVE_DURATION_MS should eventually come from weapon data.
             slot.shieldActiveMs = CONFIG.SHIELD_ACTIVE_DURATION_MS;
             slot.shieldCooldownMs = 0;
-            slot.shieldIsActive = true; // Starts active
+            slot.shieldIsActive = true;
         }
 
         return slot;
@@ -150,8 +161,32 @@ export class Mech {
     }
 
     /**
+     * Spawn a single projectile from a slot toward a given angle.
+     * Used by both fireSlot (round 1) and the burst tick (rounds 2-N).
+     */
+    _spawnProjectile(armKey, slot, angle) {
+        const barrel = this._barrelPosition(armKey);
+        const wd = slot.weaponData;
+        const rangePixels = wd.RangeMax * CONFIG.TILE_SIZE;
+        const p = new Projectile(
+            barrel.x, barrel.y,
+            angle,
+            400,
+            rangePixels,
+            this.faction,
+            wd.Attack,
+            slot.combinedAccuracy
+        );
+        p.color = '#ffff00';
+        return p;
+    }
+
+    /**
      * Attempt to fire a specific slot toward a target position.
-     * Returns an array of new Projectile objects (may be empty).
+     * For single-projectile and Fan weapons: spawns all projectiles immediately.
+     * For Linear multi-projectile (burst) weapons: spawns round 1 and arms the burst queue.
+     * Per BasicConcepts.md: FinalAttackInterval starts at round 1.
+     *
      * @param {'armLeft'|'armRight'} armKey
      * @param {'grip'|'shoulder'} slotType
      * @param {{ x: number, y: number }} target - World position of mouse
@@ -162,60 +197,49 @@ export class Mech {
 
         const slot = this.slots[armKey][slotType];
         if (slot.currentCooldownMs > 0) return [];
+        if (slot.isShield) return [];
 
         const weaponData = slot.weaponData;
 
-        // DeliveryType guard — Swing not implemented
-        if (weaponData.DeliveryType === 'Swing') {
-            // Melee deferred — do nothing silently
-            return [];
-        }
+        if (weaponData.DeliveryType === 'Swing') return []; // Deferred
 
         const barrel = this._barrelPosition(armKey);
         const dx = target.x - barrel.x;
         const dy = target.y - barrel.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Range check:
-        // - RangeMax is enforced by the projectile's own travel distance — no cursor gate needed.
-        // - RangeMin IS enforced here: some weapons (e.g. missiles) physically can't fire at
-        //   point-blank targets. The aim point must be outside the dead zone.
-        const rangeMaxPixels = weaponData.RangeMax * CONFIG.TILE_SIZE;
         const rangeMinPixels = (weaponData.RangeMin || 1) * CONFIG.TILE_SIZE;
-        if (dist < rangeMinPixels) return []; // Too close — dead zone (e.g. missile arming distance)
-        const rangePixels = rangeMaxPixels; // Projectile travel distance
+        if (dist < rangeMinPixels) return []; // Inside dead zone (e.g. missiles)
 
         const baseAngle = Math.atan2(dy, dx);
         const count = Math.max(1, weaponData.ProjectilesPerRound || 1);
-        const projectiles = [];
 
-        for (let i = 0; i < count; i++) {
-            let angle = baseAngle;
-
-            if (weaponData.DeliveryType === 'Fan' && count > 1) {
-                const spreadRad = (CONFIG.FAN_SPREAD_DEGREES * Math.PI / 180);
-                const step = spreadRad / (count - 1);
-                angle = baseAngle - spreadRad / 2 + step * i;
-            }
-            // Linear: all at same angle
-
-            const p = new Projectile(
-                barrel.x, barrel.y,
-                angle,
-                400,              // Projectile speed px/s
-                rangePixels,
-                this.faction,
-                weaponData.Attack,
-                slot.combinedAccuracy
-            );
-            p.color = '#ffff00';
-            projectiles.push(p);
-        }
-
-        // Start cooldown on first spawn (per BasicConcepts.md)
+        // --- Start cooldown at round 1 (per spec) ---
         slot.currentCooldownMs = slot.intervalMs;
 
-        return projectiles;
+        // --- Fan weapons: all projectiles at once, spread over cone ---
+        if (weaponData.DeliveryType === 'Fan' && count > 1) {
+            const spreadRad = (CONFIG.FAN_SPREAD_DEGREES * Math.PI / 180);
+            const step = spreadRad / (count - 1);
+            const projectiles = [];
+            for (let i = 0; i < count; i++) {
+                const angle = baseAngle - spreadRad / 2 + step * i;
+                projectiles.push(this._spawnProjectile(armKey, slot, angle));
+            }
+            return projectiles;
+        }
+
+        // --- Linear burst: fire round 1 now, queue the rest ---
+        if (count > 1) {
+            // Arm burst queue with remaining rounds
+            slot.burstRemaining = count - 1;
+            slot.burstTimerMs = CONFIG.INTRA_BURST_INTERVAL_MS;
+            slot.burstAngle = baseAngle;
+            slot.burstArm = armKey;
+        }
+
+        // Fire round 1 immediately
+        return [this._spawnProjectile(armKey, slot, baseAngle)];
     }
 
     update(dt, inputVector, mousePos, inputState, game) {
@@ -302,6 +326,24 @@ export class Mech {
 
         // Weapon firing — return all new projectiles as an array
         const newProjectiles = [];
+
+        // --- Burst tick: emit queued rounds for in-progress bursts ---
+        for (const arm of ['armLeft', 'armRight']) {
+            for (const type of ['grip', 'shoulder']) {
+                const slot = this.slots[arm][type];
+                if (!slot || !slot.isBurst || slot.burstRemaining <= 0) continue;
+                if (this.parts[arm].hp <= 0) { slot.burstRemaining = 0; continue; } // Arm lost mid-burst
+
+                slot.burstTimerMs -= dtMs;
+                if (slot.burstTimerMs <= 0) {
+                    newProjectiles.push(this._spawnProjectile(arm, slot, slot.burstAngle));
+                    slot.burstRemaining--;
+                    slot.burstTimerMs = slot.burstRemaining > 0 ? CONFIG.INTRA_BURST_INTERVAL_MS : 0;
+                }
+            }
+        }
+
+        // --- Player input fire ---
         if (inputState && mousePos) {
             if (inputState.isRightDown) {
                 newProjectiles.push(...this.fireSlot('armLeft', 'grip', mousePos));
@@ -318,6 +360,7 @@ export class Mech {
         }
 
         return newProjectiles;
+
     }
 
     checkCollision(x, y, game) {
@@ -487,11 +530,12 @@ export class Mech {
                 ctx.fillStyle = '#ffff00';
                 ctx.fillRect(-this.size / 2 - 2, -this.size / 2, 4, 15);
             }
-            // Draw Shoulder weapon (small block)
+            // Draw Shoulder weapon — sits at the rear of the arm (positive Y = behind mech facing)
+            // Positioned so the arm is still partially visible in front of it
             const lsSlot = this.slots.armLeft.shoulder;
             if (lsSlot) {
                 ctx.fillStyle = '#ff8800';
-                ctx.fillRect(-this.size / 2 - 4, -this.size / 2 + 5, 8, 8);
+                ctx.fillRect(-this.size / 2 - 5, 0, 10, 10);
             }
         } else {
             ctx.fillStyle = '#555555';
@@ -508,10 +552,11 @@ export class Mech {
                 ctx.fillStyle = '#00ffff';
                 ctx.fillRect(this.size / 2 - 2, -this.size / 2, 4, 15);
             }
+            // Draw Shoulder weapon — sits at the rear of the arm (positive Y = behind mech facing)
             const rsSlot = this.slots.armRight.shoulder;
             if (rsSlot) {
                 ctx.fillStyle = '#8800ff';
-                ctx.fillRect(this.size / 2 - 4, -this.size / 2 + 5, 8, 8);
+                ctx.fillRect(this.size / 2 - 5, 0, 10, 10);
             }
         } else {
             ctx.fillStyle = '#555555';

@@ -35,8 +35,8 @@ export const CONFIG = {
         armRight: { partType: 'Arm', id: 12001 },  // Arm A
         legs: { partType: 'Legs', id: 13001 },  // Legs A (Bipedal)
         slots: {
-            armLeft: { grip: 21006, shoulder: 22003 }, // Rifle A + Missile Launcher A
-            armRight: { grip: 21003, shoulder: 22001 }, // Machinegun A + Light Shield
+            armLeft: { grip: 21003, shoulder: 22003 }, // Machinegun A (RMB) + Missile Launcher A (2)
+            armRight: { grip: 21007, shoulder: 22001 }, // Shotgun A     (1)  + Light Shield       (3)
         }
     }
 };
