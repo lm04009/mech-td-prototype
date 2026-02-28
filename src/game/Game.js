@@ -10,6 +10,7 @@ import { Mech } from './mech.js';
 import { Terminal } from './terminal.js';
 import { Camera } from './camera.js';
 import { Tower } from './tower.js';
+import { Pathfinder } from '../engine/Pathfinder.js';
 import { UIManager } from '../ui/UIManager.js';
 import { HUD } from '../ui/components/HUD.js';
 import { GameOverScreen } from '../ui/screens/GameOverScreen.js';
@@ -102,6 +103,11 @@ export class Game {
         );
         this.camera.follow(this.mech);
 
+        // Click-to-move state
+        this.repathThrottleMs = 0;
+        this.lmbWasDown = false;    // Edge-detection for new LMB press
+        this.clickRings = [];       // [{x, y, timerMs}] — world-space ring animations
+
         this.loop.start();
     }
 
@@ -154,41 +160,147 @@ export class Game {
         }
 
         // 2. Input & Context
-        const movement = this.input.getMovementVector();
         const mouseWorld = this.input.getMouseWorld(this.camera);
         const grid = this.input.getMouseGrid(this.camera, this.TILE_SIZE);
         const hoveringSocket = this.map.isBuildable(grid.col, grid.row);
+        const lmbDown = this.input.mouse.isDown;
 
         // 3. Construction Logic
-        // TODO: Move this out to a ConstructionManager or similar if it grows
-        if (this.input.mouse.isDown && !this.clickProcessed) {
+        if (lmbDown && !this.clickProcessed) {
             this.clickProcessed = true;
             if (hoveringSocket) {
                 this.tryBuildTower(grid.col, grid.row);
             }
         }
-        if (!this.input.mouse.isDown) this.clickProcessed = false;
+        if (!lmbDown) this.clickProcessed = false;
 
-        // 4. Mech Update (Weapon Fire)
-        // LMB (isDown) is suppressed on sockets to prevent accidental "fire" context
-        // from the old LMB=fire system. RMB+1+2+3 are NOT suppressed — building is LMB-only.
+        // 4. Click-to-move pathfinding
+        if (!hoveringSocket) {
+            const isNewPress = lmbDown && !this.lmbWasDown; // Leading edge
+
+            if (isNewPress) {
+                // Immediate re-path on new click
+                this._requestRepath(mouseWorld, true);
+            } else if (lmbDown) {
+                // Throttled re-path while held
+                this.repathThrottleMs -= dt * 1000;
+                if (this.repathThrottleMs <= 0) {
+                    this._requestRepath(mouseWorld, false);
+                }
+            }
+        }
+        this.lmbWasDown = lmbDown;
+
+        // 5. Mech Update (Weapon Fire)
         const mechInputMouse = { ...mouseWorld };
         if (hoveringSocket) mechInputMouse.isDown = false;
 
         const weaponInput = this.input.getWeaponInputState();
 
-        const newProjectiles = this.mech.update(dt, movement, mechInputMouse, weaponInput, this);
+        const newProjectiles = this.mech.update(dt, mechInputMouse, weaponInput, this);
         if (newProjectiles && newProjectiles.length > 0) {
             for (const p of newProjectiles) this.entities.addProjectile(p);
         }
 
-        // 5. System Updates
+        // 6. System Updates
         this.camera.follow(this.mech);
-        this.map.update(dt, this.mech); // Process Pending Sockets
+        this.map.update(dt, this.mech);
         this.encounter.update(dt);
-        this.entities.update(dt, this); // Pass Game for context (credits, terminal)
+        this.entities.update(dt, this);
+
+        // 7. Click ring timers
+        const dtMs = dt * 1000;
+        for (let i = this.clickRings.length - 1; i >= 0; i--) {
+            this.clickRings[i].timerMs -= dtMs;
+            if (this.clickRings[i].timerMs <= 0) this.clickRings.splice(i, 1);
+        }
 
         this.uiManager.update(dt);
+    }
+
+    /**
+     * Compute an A* path from the mech to the given world position and
+     * call mech.setPath() with the resulting world-space waypoints.
+     * Falls back to nearest walkable tile if the target is not reachable.
+     * Resets the re-path throttle to 100ms.
+     */
+    _requestRepath(mouseWorld, isNewPress) {
+        const TS = this.TILE_SIZE;
+        const legsData = this.mech.parts.legs;
+        const isWalkable = (gx, gy) => this.map.isWalkableFor(gx, gy, legsData);
+
+        const startGrid = {
+            x: Math.floor(this.mech.x / TS),
+            y: Math.floor(this.mech.y / TS)
+        };
+        let endGrid = {
+            x: Math.floor(mouseWorld.x / TS),
+            y: Math.floor(mouseWorld.y / TS)
+        };
+
+        let isSnapped = false;
+        // Snap to nearest walkable if target tile is blocked
+        if (!isWalkable(endGrid.x, endGrid.y)) {
+            endGrid = Pathfinder.snapToNearestWalkable(
+                endGrid, isWalkable, this.map.width, this.map.height
+            );
+            isSnapped = true;
+        }
+
+        const gridPath = Pathfinder.findPath(
+            startGrid, endGrid, isWalkable, this.map.width, this.map.height
+        );
+
+        if (gridPath && gridPath.length > 0) {
+            // Convert grid coords to world-space tile centers
+            const worldPath = gridPath.map(p => ({
+                x: p.x * TS + TS / 2,
+                y: p.y * TS + TS / 2
+            }));
+
+            // The exact pixel destination feels better than snapping to tile centers, 
+            // especially for the final node. If we didn't snap due to blocked terrain, 
+            // use the exact mouse click for the end.
+            if (!isSnapped) {
+                worldPath[worldPath.length - 1] = { x: mouseWorld.x, y: mouseWorld.y };
+            }
+
+            // The first node is the tile we are already in. 
+            // If we don't shift it, the mech tries to walk back to the center of its current tile.
+            if (worldPath.length > 1) {
+                worldPath.shift();
+            }
+
+            this.mech.setPath(worldPath);
+
+            // Click ring visual at intended destination (only spawn on initial click, not on drag-repaths)
+            if (isNewPress) {
+                const dest = worldPath[worldPath.length - 1] || mouseWorld;
+                this.clickRings.push({ x: dest.x, y: dest.y, timerMs: 300 });
+            }
+        }
+
+        this.repathThrottleMs = 100; // Reset throttle
+    }
+
+    /**
+     * Draw in-flight click ring animations in world space.
+     * Each ring expands from 0 to 20px radius and fades out over 300ms.
+     * Drawn above map/entities, below mech.
+     */
+    _drawClickRings(ctx) {
+        for (const ring of this.clickRings) {
+            const t = ring.timerMs / 300; // 1.0 → 0.0 as it fades
+            const radius = (1 - t) * 20;
+            const alpha = t;
+            ctx.save();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ring.x, ring.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
     }
 
     draw() {
@@ -203,10 +315,13 @@ export class Game {
         ctx.translate(-this.camera.x, -this.camera.y);
 
         this.map.draw(ctx);
-        this.drawEncounterOverlay(ctx); // Replaces simple drawPath
+        this.drawEncounterOverlay(ctx);
 
         this.terminal.draw(ctx);
         this.entities.draw(ctx);
+
+        // Click rings (above map, below mech)
+        this._drawClickRings(ctx);
 
         // Ghost Preview
         this.drawGhost(ctx);

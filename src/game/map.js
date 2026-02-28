@@ -243,6 +243,30 @@ export class GameMap {
         return true;
     }
 
+    /**
+     * Mech-state-aware walkability check for pathfinding (grid coordinates).
+     * Unlike isWalkable() (world coords, collision system), this uses grid coords
+     * and respects legs capabilities (e.g. hover legs crossing water in future).
+     *
+     * @param {number} gx - Grid X
+     * @param {number} gy - Grid Y
+     * @param {object} legsData - Mech legs part data. Supports: { canCrossWater: bool }
+     * @returns {boolean}
+     */
+    isWalkableFor(gx, gy, legsData) {
+        if (gx < 0 || gx >= this.width || gy < 0 || gy >= this.height) return false;
+
+        const tile = this.tiles[gy][gx];
+        const tower = this.towers[gy][gx];
+
+        if (tile === TERRAIN.WALL) return false;
+        if (tile === TERRAIN.WATER) return legsData?.canCrossWater === true;
+        if (tile === TERRAIN.SOCKET && tower) return false; // Socket with a built tower is blocked
+
+        // GROUND, HIDDEN_SOCKET, empty SOCKET → passable
+        return true;
+    }
+
     // Helper to get all obstacles near a rectangle
     getObstacles(rect) {
         const obstacles = [];

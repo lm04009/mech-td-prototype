@@ -159,7 +159,7 @@ export class HUD extends BaseComponent {
         controlsContainer.appendChild(controlsLabel);
 
         const controls = [
-            ['WASD', 'Move'],
+            ['LMB', 'Move'],
             ['Mouse', 'Aim'],
             ['RMB', 'L-Grip weapon'],
             ['1', 'R-Grip weapon'],

@@ -66,6 +66,10 @@ export class Mech {
         this.evasion = CombatSystem.calcEvasion(this.totalWeight, this.totalPowerOutput);
 
         this.angle = 0; // Facing angle in radians
+
+        // Pathfinding state
+        this.activePath = [];          // World-space {x,y} waypoints
+        this.pathWaypointIndex = 0;    // Current waypoint index
     }
 
     /**
@@ -251,7 +255,16 @@ export class Mech {
         return [this._spawnProjectile(armKey, slot, baseAngle, slotType)];
     }
 
-    update(dt, inputVector, mousePos, inputState, game) {
+    /**
+     * Set a new path for the mech to follow.
+     * @param {{ x: number, y: number }[]} worldWaypoints - World-space waypoints
+     */
+    setPath(worldWaypoints) {
+        this.activePath = worldWaypoints || [];
+        this.pathWaypointIndex = 0;
+    }
+
+    update(dt, mousePos, inputState, game) {
         const dtMs = dt * 1000;
 
         // Damage Flash
@@ -307,25 +320,40 @@ export class Mech {
         }
         this.activeShieldDefenseBonus = shieldBonus;
 
-        // Movement
-        if (inputVector.x !== 0 || inputVector.y !== 0) {
+        // Movement — waypoint following
+        if (this.activePath.length > 0 && this.pathWaypointIndex < this.activePath.length) {
             let currentSpeed = this.speed;
             if (this.parts.legs.hp <= 0) {
                 currentSpeed = Math.floor(currentSpeed * 5000 / 10000);
             }
 
-            let dx = inputVector.x * currentSpeed * dt;
-            let dy = inputVector.y * currentSpeed * dt;
+            const target = this.activePath[this.pathWaypointIndex];
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // X-axis slide
-            let nextX = this.x + dx;
-            if (this.checkCollision(nextX, this.y, game)) dx = 0;
-            this.x += dx;
+            if (dist <= 5) {
+                // Arrived at waypoint — advance to next
+                this.pathWaypointIndex++;
+                if (this.pathWaypointIndex >= this.activePath.length) {
+                    this.activePath = []; // Destination reached — stop
+                }
+            } else {
+                // Steer toward waypoint
+                const moveDist = currentSpeed * dt;
+                let applyDx = (dx / dist) * moveDist;
+                let applyDy = (dy / dist) * moveDist;
 
-            // Y-axis slide
-            let nextY = this.y + dy;
-            if (this.checkCollision(this.x, nextY, game)) dy = 0;
-            this.y += dy;
+                // X-axis slide
+                let nextX = this.x + applyDx;
+                if (this.checkCollision(nextX, this.y, game)) applyDx = 0;
+                this.x += applyDx;
+
+                // Y-axis slide
+                let nextY = this.y + applyDy;
+                if (this.checkCollision(this.x, nextY, game)) applyDy = 0;
+                this.y += applyDy;
+            }
         }
 
         // Face mouse
