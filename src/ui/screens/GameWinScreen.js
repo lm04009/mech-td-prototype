@@ -21,8 +21,9 @@ export class GameWinScreen extends BaseScreen {
         restartBtn.className = 'btn';
         restartBtn.textContent = 'RETURN TO BASE';
         restartBtn.onclick = () => {
-            this.uiManager.game.reset();
-            this.uiManager.hideScreen();
+            import('../../game/BaseScene.js').then(module => {
+                this.uiManager.game.switchScene(new module.BaseScene());
+            });
         };
         container.appendChild(restartBtn);
     }

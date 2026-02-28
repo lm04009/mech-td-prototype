@@ -1,7 +1,5 @@
 import { GameState } from './GameState.js';
-import { GameLoop } from '../engine/GameLoop.js';
 import { EventBus } from '../engine/EventBus.js';
-import { InputHandler } from '../engine/Input.js'; // Moved
 import { EntityManager } from './EntityManager.js';
 import { EncounterManager } from './EncounterManager.js';
 import { CONFIG, LEVEL_1_ENCOUNTER } from './Config.js';
@@ -11,37 +9,25 @@ import { Terminal } from './terminal.js';
 import { Camera } from './camera.js';
 import { Tower } from './tower.js';
 import { Pathfinder } from '../engine/Pathfinder.js';
-import { UIManager } from '../ui/UIManager.js';
-import { HUD } from '../ui/components/HUD.js';
-import { GameOverScreen } from '../ui/screens/GameOverScreen.js';
-import { GameWinScreen } from '../ui/screens/GameWinScreen.js';
-import { PauseScreen } from '../ui/screens/PauseScreen.js';
+import { PlayerProfile } from './PlayerProfile.js';
 
-export class Game {
-    constructor(canvas, dataStore) {
-        this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
-        this.dataStore = dataStore;
+// We import BaseScene to be able to transition back
+import { BaseScene } from './BaseScene.js';
 
+export class MapScene {
+    constructor() {
         // Constants
         this.TILE_SIZE = 40;
         this.WORLD_WIDTH_TILES = 50;
         this.WORLD_HEIGHT_TILES = 50;
 
         // Engine Systems
-        this.eventBus = new EventBus();
-        this.loop = new GameLoop(
-            (dt) => this.update(dt),
-            () => this.draw()
-        );
-        this.input = new InputHandler(canvas);
-
-        // UI System
-        this.uiManager = new UIManager(this);
-        this.uiManager.setHUD(new HUD(this.uiManager));
-        this.uiManager.registerScreen('GameOver', new GameOverScreen(this.uiManager));
-        this.uiManager.registerScreen('GameWin', new GameWinScreen(this.uiManager));
-        this.uiManager.registerScreen('Pause', new PauseScreen(this.uiManager));
+        this.app = null;
+        this.canvas = null;
+        this.ctx = null;
+        this.dataStore = null;
+        this.eventBus = null;
+        this.input = null;
 
         // Game State
         this.gameState = GameState.PLAYING; // 'PLAYING', 'GAME_OVER', 'GAME_WIN'
@@ -54,13 +40,28 @@ export class Game {
         this.camera = null;
         this.entities = null;
         this.encounter = null;
+    }
+
+    enter(app) {
+        this.app = app;
+        this.canvas = app.canvas;
+        this.ctx = app.ctx;
+        this.dataStore = app.dataStore;
+        this.eventBus = app.eventBus;
+        this.input = app.input;
 
         // Bindings
-        window.addEventListener('keydown', (e) => this.onKeyDown(e));
-        window.addEventListener('resize', () => this.resizeCanvas());
+        this.keydownListener = (e) => this.onKeyDown(e);
+        window.addEventListener('keydown', this.keydownListener);
 
-        this.resizeCanvas();
         this.reset();
+    }
+
+    leave() {
+        window.removeEventListener('keydown', this.keydownListener);
+        if (this.app.uiManager) {
+            this.app.uiManager.hideScreen();
+        }
     }
 
     reset() {
@@ -69,8 +70,8 @@ export class Game {
         this.credits = 500;
 
         // Reset UI
-        if (this.uiManager) {
-            this.uiManager.hideScreen();
+        if (this.app && this.app.uiManager) {
+            this.app.uiManager.hideScreen();
             this.eventBus.emit('game:reset');
             // Force HUD update for initial state
             this.eventBus.emit('credits:change', this.credits);
@@ -82,7 +83,7 @@ export class Game {
         const cx = (this.map.width * this.TILE_SIZE) / 2;
         const cy = (this.map.height * this.TILE_SIZE) / 2;
 
-        this.mech = new Mech(cx - 100, cy, this.eventBus, this.dataStore);
+        this.mech = new Mech(cx - 100, cy, this.eventBus, this.dataStore, PlayerProfile.loadout);
         this.terminal = new Terminal(cx, cy, this.eventBus);
 
         // Emit initial health states for UI sync
@@ -108,18 +109,11 @@ export class Game {
         this.lmbWasDown = false;    // Edge-detection for new LMB press
         this.clickRings = [];       // [{x, y, timerMs}] — world-space ring animations
 
-        this.loop.start();
     }
 
-    start() {
-        this.loop.start();
-    }
-
-    resizeCanvas() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+    resizeCanvas(width, height) {
         if (this.camera) {
-            this.camera.resize(this.canvas.width, this.canvas.height);
+            this.camera.resize(width, height);
         }
     }
 
@@ -127,14 +121,16 @@ export class Game {
         if (e.key === 'Escape') {
             if (this.gameState === GameState.PLAYING) {
                 this.gameState = GameState.PAUSED;
-                this.uiManager.showScreen('Pause');
+                if (this.app.uiManager) this.app.uiManager.showScreen('Pause');
             } else if (this.gameState === GameState.PAUSED) {
                 this.gameState = GameState.PLAYING;
-                this.uiManager.hideScreen();
+                if (this.app.uiManager) this.app.uiManager.hideScreen();
             }
         }
         if ((this.gameState === GameState.GAME_OVER || this.gameState === GameState.GAME_WIN) && e.key.toLowerCase() === 'r') {
-            this.reset();
+            // Return to base scene or restart based on what Player decided.
+            // For now, let's let them return to base.
+            this.app.switchScene(new BaseScene());
         }
         if (this.gameState === GameState.PLAYING && e.key === 'k') { // Debug Kill, only when playing
             this.terminal.takeDamage(100);
@@ -215,7 +211,6 @@ export class Game {
             if (this.clickRings[i].timerMs <= 0) this.clickRings.splice(i, 1);
         }
 
-        this.uiManager.update(dt);
     }
 
     /**
@@ -569,6 +564,7 @@ export class Game {
         if (this.gameState !== GameState.PLAYING) return;
         this.gameState = GameState.GAME_WIN;
         console.log('VICTORY!');
+        PlayerProfile.addCredits(this.credits); // Award remaining credits to global profile
         this.eventBus.emit('game:win');
     }
 

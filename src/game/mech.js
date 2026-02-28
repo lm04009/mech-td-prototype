@@ -15,7 +15,7 @@ import { Projectile } from './projectile.js';
  * Stats are derived from parts.json / weapons.json via DataStore.
  */
 export class Mech {
-    constructor(x, y, eventBus, dataStore) {
+    constructor(x, y, eventBus, dataStore, loadout = CONFIG.STARTING_LOADOUT) {
         this.x = x;
         this.y = y;
         this.eventBus = eventBus;
@@ -28,7 +28,6 @@ export class Mech {
         this.destructionSparks = [];
 
         // --- Load parts from data ---
-        const loadout = CONFIG.STARTING_LOADOUT;
         const bodyData = dataStore.getPartById('Body', loadout.body.id);
         const armLData = dataStore.getPartById('Arm', loadout.armLeft.id);
         const armRData = dataStore.getPartById('Arm', loadout.armRight.id);
@@ -70,6 +69,9 @@ export class Mech {
         // Pathfinding state
         this.activePath = [];          // World-space {x,y} waypoints
         this.pathWaypointIndex = 0;    // Current waypoint index
+
+        // State machine flag overrides
+        this.weaponsPowered = true;
     }
 
     /**
@@ -283,6 +285,13 @@ export class Mech {
                 if (!slot) continue;
 
                 if (slot.isShield) {
+                    if (!this.weaponsPowered) {
+                        slot.shieldIsActive = false;
+                        slot.shieldActiveMs = 0;
+                        slot.shieldCooldownMs = 0;
+                        continue;
+                    }
+
                     // Shield runs its own automatic cycle independent of player input
                     if (slot.shieldIsActive) {
                         slot.shieldActiveMs = Math.max(0, slot.shieldActiveMs - dtMs);
@@ -310,11 +319,13 @@ export class Mech {
         // Compute total active shield defense bonus for this frame
         // Applied to ALL incoming hits against the mech while at least one shield is active.
         let shieldBonus = 0;
-        for (const arm of ['armLeft', 'armRight']) {
-            for (const type of ['grip', 'shoulder']) {
-                const slot = this.slots[arm][type];
-                if (slot && slot.isShield && slot.shieldIsActive && this.parts[arm].hp > 0) {
-                    shieldBonus += (slot.weaponData.Defense || 0);
+        if (this.weaponsPowered) {
+            for (const arm of ['armLeft', 'armRight']) {
+                for (const type of ['grip', 'shoulder']) {
+                    const slot = this.slots[arm][type];
+                    if (slot && slot.isShield && slot.shieldIsActive && this.parts[arm].hp > 0) {
+                        shieldBonus += (slot.weaponData.Defense || 0);
+                    }
                 }
             }
         }
@@ -486,23 +497,25 @@ export class Mech {
             const cy = -this.size / 2;
             const color = SLOT_COLORS[def.colorKey];
 
-            // Max range ring (solid)
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.arc(cx, cy, maxPx, 0, Math.PI * 2);
-            ctx.stroke();
-
-            // Min range ring (dashed) — only draw if meaningfully different from max
-            if (wd.RangeMin > 1) {
+            if (this.weaponsPowered) {
+                // Max range ring (solid)
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 1;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.arc(cx, cy, minPx, 0, Math.PI * 2);
-                ctx.stroke();
                 ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.arc(cx, cy, maxPx, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Min range ring (dashed) — only draw if meaningfully different from max
+                if (wd.RangeMin > 1) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, minPx, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
             }
         }
 

@@ -126,6 +126,7 @@ export class HUD extends BaseComponent {
             };
         });
 
+        this.weaponsContainer = weaponsContainer;
         this.container.appendChild(weaponsContainer);
 
         // ── CREDITS & INTEL ──────────────────────────────────────────────────
@@ -147,6 +148,8 @@ export class HUD extends BaseComponent {
         intelContainer.appendChild(this.creditsDisplay);
         intelContainer.appendChild(this.enemyCountDisplay);
         intelContainer.appendChild(this.terminalHealthDisplay);
+
+        this.intelContainer = intelContainer;
         this.container.appendChild(intelContainer);
 
         // ── CONTROLS HINT ────────────────────────────────────────────────────
@@ -165,8 +168,7 @@ export class HUD extends BaseComponent {
             ['1', 'R-Grip weapon'],
             ['2', 'L-Shoulder weapon'],
             ['3', 'R-Shoulder weapon'],
-            ['LMB', 'Build tower (on socket)'],
-            ['ESC', 'Pause'],
+            ['ESC', 'Pause / Menu'],
         ];
 
         controls.forEach(([key, desc]) => {
@@ -176,6 +178,7 @@ export class HUD extends BaseComponent {
             controlsContainer.appendChild(line);
         });
 
+        this.controlsContainer = controlsContainer;
         this.container.appendChild(controlsContainer);
 
         // ── EVENT BUS ────────────────────────────────────────────────────────
@@ -250,6 +253,27 @@ export class HUD extends BaseComponent {
                 return;
             }
 
+            // --- Inactive state override (Make visibly inactive but show names) ---
+            const scene = this.uiManager.game.currentScene;
+            const isCombat = scene && (scene.mech && scene.mech.weaponsPowered !== false);
+
+            if (!isCombat) {
+                el.name.textContent = slot.weaponData.Name;
+                el.name.style.color = '#888'; // Dimmed text
+                el.cooldownFill.style.width = '0%'; // Empty bars
+                el.keyBadge.style.opacity = '0.3'; // Dimmed key
+                el.slotLabel.style.color = '#444'; // Dimmed label
+                if (slot.isShield) {
+                    el.name.textContent = `⬡ ${slot.weaponData.Name}`;
+                    el.stateTag.style.display = 'inline';
+                    el.stateTag.textContent = 'INACTIVE';
+                    el.stateTag.style.color = '#666';
+                } else {
+                    el.stateTag.style.display = 'none';
+                }
+                return;
+            }
+
             el.slotLabel.style.color = '#888';
 
             // --- Shield slot: auto-cycle, no key needed ---
@@ -306,24 +330,35 @@ export class HUD extends BaseComponent {
 
     // Polling update — called every frame via UIManager
     update(dt) {
-        const game = this.uiManager.game;
+        const app = this.uiManager.game; // appManager
+        const scene = app.currentScene;
+        if (!scene) return;
 
-        if (game.entities) {
-            this.enemyCountDisplay.textContent = `Hostiles: ${game.entities.enemies.length}`;
+        // Decoupled combat check: base it on whether the scene provides BOTH entities AND enemies
+        const isCombat = !!(scene.entities && scene.entities.enemies);
+
+        if (this.intelContainer) this.intelContainer.style.display = isCombat ? '' : 'none';
+        if (this.controlsContainer) this.controlsContainer.style.display = ''; // Revert 'flex' override to allow CSS block layout
+
+        if (scene.entities && scene.entities.enemies) {
+            this.enemyCountDisplay.textContent = `Hostiles: ${scene.entities.enemies.length}`;
+        } else {
+            this.enemyCountDisplay.textContent = `Hostiles: 0`;
         }
 
-        // Sync health on first frame
-        if (game.mech && game.mech.parts && this.partBars && this.partBars.body.text.textContent === '--') {
-            this.updateHealth({ parts: game.mech.parts });
+        // Sync health whenever the core mech entity reference changes (like entering a new scene)
+        if (scene.mech && scene.mech.parts && this.lastMechRef !== scene.mech) {
+            this.updateHealth({ parts: scene.mech.parts });
+            this.lastMechRef = scene.mech;
         }
 
-        if (game.credits !== undefined) {
-            this.updateCredits(game.credits);
+        if (scene.credits !== undefined) {
+            this.updateCredits(scene.credits);
         }
 
         // Weapon slots (polled every frame for cooldown bars)
-        if (game.mech) {
-            this.updateWeaponSlots(game.mech);
+        if (scene.mech) {
+            this.updateWeaponSlots(scene.mech);
         }
     }
 }

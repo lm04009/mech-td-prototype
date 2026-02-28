@@ -13,15 +13,18 @@ export class GameOverScreen extends BaseScreen {
         const reason = document.createElement('div');
         reason.style.fontSize = '24px';
         reason.style.marginBottom = '40px';
-        reason.textContent = this.uiManager.game.gameOverReason || 'Critical Failure';
+        const scene = this.uiManager.game.currentScene;
+        reason.textContent = (scene && scene.gameOverReason) ? scene.gameOverReason : 'Critical Failure';
         container.appendChild(reason);
 
         const restartBtn = document.createElement('button');
         restartBtn.className = 'btn';
         restartBtn.textContent = 'REBOOT SYSTEM';
         restartBtn.onclick = () => {
-            this.uiManager.game.reset();
-            this.uiManager.hideScreen(); // Or switch to HUD/Main
+            // Dynamic import because of cyclical dependency if we try top-level
+            import('../../game/BaseScene.js').then(module => {
+                this.uiManager.game.switchScene(new module.BaseScene());
+            });
         };
         container.appendChild(restartBtn);
     }
