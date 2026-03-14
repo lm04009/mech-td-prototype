@@ -240,3 +240,156 @@
     background: #222;
     transform: translateY(2px);
 }
+
+.btn:disabled {
+    background: #222;
+    border-color: #444;
+    color: #666;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* ── HANGAR UI ─────────────────────────────────────────────────── */
+.hangar-overlay {
+    background: rgba(10, 15, 20, 0.95);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+}
+
+.hangar-wrapper {
+    display: flex;
+    width: 900px;
+    max-width: 95vw;
+    height: 600px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #55aaff;
+    box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
+}
+
+.hangar-visual-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px dashed #336;
+}
+
+.hangar-canvas-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #0f151f;
+}
+
+.hangar-constraints-panel {
+    background: #111;
+    padding: 15px;
+    text-align: center;
+    border-top: 1px solid #334;
+}
+
+.constraint-row {
+    font-size: 16px;
+    color: #aad;
+    margin-bottom: 10px;
+}
+
+.constraint-error {
+    color: #f44;
+    font-weight: bold;
+    font-size: 11px;
+    min-height: 20px;
+    margin-bottom: 10px;
+}
+
+.hangar-engineering-pane {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 20px;
+}
+
+.hangar-list-panel {
+    flex: 1;
+    background: #111;
+    border: 1px solid #334;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.hangar-list-panel h3 {
+    margin: 0;
+    padding: 10px;
+    background: #223;
+    color: #fff;
+    font-size: 14px;
+    border-bottom: 1px solid #446;
+}
+
+.hangar-item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+}
+
+.hangar-item-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 60px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #222;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.hangar-item-row > div {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hangar-item-row:hover {
+    background: #224;
+}
+
+.hangar-item-row.active-slot {
+    background: #235;
+    border-left: 4px solid #5af;
+}
+
+.hangar-stats-panel {
+    min-height: 0;
+    overflow-y: auto;
+    background: #0a0a10;
+    border: 1px solid #334;
+    padding: 10px;
+}
+
+.hangar-stats-table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.hangar-stats-table th {
+    color: #88a;
+    padding: 4px;
+    border-bottom: 1px solid #334;
+}
+
+.hangar-stats-table td {
+    padding: 4px;
+}
+
+.stat-positive {
+    color: #0f0;
+}
+
+.stat-negative {
+    color: #f00;
+}

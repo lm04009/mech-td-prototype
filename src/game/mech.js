@@ -2,6 +2,7 @@ import { CONFIG } from './Config.js';
 import { Collision } from '../engine/Collision.js';
 import { CombatSystem } from '../engine/CombatSystem.js';
 import { Projectile } from './projectile.js';
+import { MechStats } from '../utils/MechStats.js';
 
 /**
  * Mech — the player-controlled unit.
@@ -54,15 +55,11 @@ export class Mech {
         };
 
         // --- Derived combat / movement stats ---
-        const allWeaponWeights = this._sumWeaponWeights();
-        this.totalWeight = (bodyData.Weight || 0) + (armLData.Weight || 0) + (armRData.Weight || 0) + (legsData.Weight || 0) + allWeaponWeights;
-        this.totalPowerOutput = (bodyData.PowerOutput || 0) + (legsData.PowerOutput || 0);
-
-        const moveEfficiency = CombatSystem.calcMoveEfficiency(this.totalWeight, this.totalPowerOutput);
-        const additiveMods = (legsData.MovementSpeedMod || 0);
-        this.speed = CombatSystem.calcActualSpeed(CONFIG.MECH_BASE_SPEED, additiveMods, moveEfficiency);
-
-        this.evasion = CombatSystem.calcEvasion(this.totalWeight, this.totalPowerOutput);
+        const derived = MechStats.deriveStats(loadout, dataStore);
+        this.totalWeight = derived.totalWeight;
+        this.totalPowerOutput = derived.totalPowerOutput;
+        this.speed = derived.actualSpeed;
+        this.evasion = derived.evasion;
 
         this.angle = 0; // Facing angle in radians
 

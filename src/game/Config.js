@@ -30,7 +30,7 @@ export const CONFIG = {
      * Slot value null = slot is empty.
      */
     STARTING_LOADOUT: {
-        body: { partType: 'Body', id: 11001 },  // Body A
+        body: { partType: 'Body', id: 11002 },  // Body B (PO 110 — covers the 4-weapon starting loadout; Body A PO 55 was too low)
         armLeft: { partType: 'Arm', id: 12001 },  // Arm A
         armRight: { partType: 'Arm', id: 12001 },  // Arm A
         legs: { partType: 'Legs', id: 13001 },  // Legs A (Bipedal)

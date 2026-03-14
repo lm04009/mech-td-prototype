@@ -79,6 +79,7 @@ export class MapScene {
 
         // 1. Map & Core Entities
         this.map = new GameMap(this.WORLD_WIDTH_TILES, this.WORLD_HEIGHT_TILES, this.TILE_SIZE);
+        this.map.generateLanes(Math.floor(this.map.width / 2), Math.floor(this.map.height / 2));
 
         const cx = (this.map.width * this.TILE_SIZE) / 2;
         const cy = (this.map.height * this.TILE_SIZE) / 2;

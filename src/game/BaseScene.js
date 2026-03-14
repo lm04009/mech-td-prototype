@@ -2,7 +2,7 @@ import { GameState } from './GameState.js';
 import { EventBus } from '../engine/EventBus.js';
 import { EntityManager } from './EntityManager.js';
 import { GameMap, TERRAIN } from './map.js';
-import { Mech } from './mech.js';
+import { Mech } from './Mech.js';
 import { Camera } from './camera.js';
 import { Pathfinder } from '../engine/Pathfinder.js';
 import { PlayerProfile } from './PlayerProfile.js';
@@ -43,11 +43,24 @@ export class BaseScene {
         this.keydownListener = (e) => this.onKeyDown(e);
         window.addEventListener('keydown', this.keydownListener);
 
+        this.deployListener = (newLoadout) => {
+            // Re-instantiate the mech at its current position using the new loadout
+            const currentX = this.mech ? this.mech.x : undefined;
+            const currentY = this.mech ? this.mech.y : undefined;
+            this.mech = new Mech(currentX, currentY, this.eventBus, this.dataStore, newLoadout);
+            this.mech.weaponsPowered = false;
+            if (this.camera) this.camera.follow(this.mech);
+        };
+        this.eventBus.on('hangar:deploy', this.deployListener);
+
         this.setupBase();
     }
 
     leave() {
         window.removeEventListener('keydown', this.keydownListener);
+        if (this.app.eventBus && this.deployListener) {
+            this.app.eventBus.off('hangar:deploy', this.deployListener);
+        }
         if (this.app.uiManager) {
             this.app.uiManager.hideScreen();
         }
@@ -98,8 +111,8 @@ export class BaseScene {
         this.interactables.push({
             id: 'hangar',
             name: 'Hangar Console',
-            worldX: (cx - 8) * this.TILE_SIZE,
-            worldY: (cy - 8) * this.TILE_SIZE,
+            worldX: (cx - 3) * this.TILE_SIZE,
+            worldY: (cy - 3) * this.TILE_SIZE,
             radius: 80,
             onInteract: () => this.openHangarUI()
         });
@@ -108,8 +121,8 @@ export class BaseScene {
         this.interactables.push({
             id: 'map_device',
             name: 'Map Device',
-            worldX: (cx + 8) * this.TILE_SIZE,
-            worldY: (cy - 8) * this.TILE_SIZE,
+            worldX: (cx + 3) * this.TILE_SIZE,
+            worldY: (cy - 3) * this.TILE_SIZE,
             radius: 80,
             onInteract: () => this.startMission()
         });
@@ -117,8 +130,9 @@ export class BaseScene {
 
     openHangarUI() {
         console.log("Opening Hangar UI...");
-        // Placeholder: Will emit an event for UIManager later
-        // this.eventBus.emit('ui:open_hangar');
+        if (this.app.uiManager) {
+            this.app.uiManager.showScreen('Hangar');
+        }
     }
 
     startMission() {
@@ -138,8 +152,11 @@ export class BaseScene {
             if (this.app.uiManager) {
                 if (this.app.uiManager.currentScreen && this.app.uiManager.currentScreen.constructor.name === 'PauseScreen') {
                     this.app.uiManager.hideScreen();
-                } else {
+                } else if (!this.app.uiManager.currentScreen) {
                     this.app.uiManager.showScreen('Pause');
+                } else if (this.app.uiManager.currentScreen.constructor.name === 'HangarScreen') {
+                    // Close hangar on escape
+                    this.app.uiManager.hideScreen();
                 }
             }
         }
@@ -263,12 +280,51 @@ export class BaseScene {
 
         this.map.draw(ctx);
 
-        // Draw interactables (placeholder visually)
+        // Draw interactables
         for (const inter of this.interactables) {
-            ctx.fillStyle = 'rgba(0, 200, 255, 0.5)';
-            ctx.beginPath();
-            ctx.arc(inter.worldX, inter.worldY, 20, 0, Math.PI * 2);
-            ctx.fill();
+            const x = inter.worldX;
+            const y = inter.worldY;
+
+            if (inter.id === 'hangar') {
+                // Hangar Console — teal square
+                ctx.fillStyle = 'rgba(0, 220, 180, 0.85)';
+                ctx.fillRect(x - 32, y - 32, 64, 64);
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x - 32, y - 32, 64, 64);
+                ctx.fillStyle = '#001a15';
+                ctx.font = 'bold 26px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('H', x, y);
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = '11px Courier New';
+                ctx.fillText('HANGAR', x, y + 46);
+            } else if (inter.id === 'map_device') {
+                // Map Device — orange diamond
+                ctx.fillStyle = 'rgba(255, 160, 0, 0.85)';
+                ctx.beginPath();
+                ctx.moveTo(x, y - 40);
+                ctx.lineTo(x + 40, y);
+                ctx.lineTo(x, y + 40);
+                ctx.lineTo(x - 40, y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#ffaa00';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.fillStyle = '#1a0d00';
+                ctx.font = 'bold 26px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('M', x, y);
+                ctx.fillStyle = '#ffaa00';
+                ctx.font = '11px Courier New';
+                ctx.fillText('DEPLOY', x, y + 54);
+            }
+
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
         }
 
         // Draw click rings

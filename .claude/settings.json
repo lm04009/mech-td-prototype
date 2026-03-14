@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import json; data=json.load\\(open\\(''src/data/weapons.json''\\)\\); [print\\(t,w[''ID''],w.get\\(''Weight'',0\\),w[''Name'']\\) for t in [''Grip'',''Shoulder''] for w in data[t]]\")",
+      "Bash(python -c \"import json; data=json.load\\(open\\(''src/data/weapons.json''\\)\\); print\\(json.dumps\\(data[''Grip''][0], indent=2\\)\\); print\\(json.dumps\\(data[''Shoulder''][0], indent=2\\)\\)\")",
+      "Bash(python -c \"import json; data=json.load\\(open\\(''src/data/weapons.json''\\)\\); print\\(''Keys:'', list\\(data.keys\\(\\)\\)\\); [print\\(t, [\\(w[''ID''], w[''Name'']\\) for w in data[t]]\\) for t in data]\")",
+      "Bash(openspec new:*)",
+      "Bash(openspec --help)",
+      "Bash(openspec change:*)"
+    ]
+  }
+}

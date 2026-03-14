@@ -6,6 +6,7 @@ import { HUD } from '../ui/components/HUD.js';
 import { GameOverScreen } from '../ui/screens/GameOverScreen.js';
 import { GameWinScreen } from '../ui/screens/GameWinScreen.js';
 import { PauseScreen } from '../ui/screens/PauseScreen.js';
+import { HangarScreen } from '../ui/screens/HangarScreen.js';
 
 export class AppManager {
     constructor(canvas, dataStore) {
@@ -24,6 +25,7 @@ export class AppManager {
         this.uiManager.registerScreen('GameOver', new GameOverScreen(this.uiManager));
         this.uiManager.registerScreen('GameWin', new GameWinScreen(this.uiManager));
         this.uiManager.registerScreen('Pause', new PauseScreen(this.uiManager));
+        this.uiManager.registerScreen('Hangar', new HangarScreen(this.uiManager));
 
         // Game Loop
         this.loop = new GameLoop(

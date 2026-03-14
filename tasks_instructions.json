@@ -1,0 +1,26 @@
+﻿{
+  "changeName": "hangar-ui",
+  "artifactId": "tasks",
+  "schemaName": "spec-driven",
+  "changeDir": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui",
+  "outputPath": "tasks.md",
+  "description": "Implementation checklist with trackable tasks",
+  "instruction": "Create the task list that breaks down the implementation work.\n\n**IMPORTANT: Follow the template below exactly.** The apply phase parses\ncheckbox format to track progress. Tasks not using `- [ ]` won't be tracked.\n\nGuidelines:\n- Group related tasks under ## numbered headings\n- Each task MUST be a checkbox: `- [ ] X.Y Task description`\n- Tasks should be small enough to complete in one session\n- Order tasks by dependency (what must be done first?)\n\nExample:\n```\n## 1. Setup\n\n- [ ] 1.1 Create new module structure\n- [ ] 1.2 Add dependencies to package.json\n\n## 2. Core Implementation\n\n- [ ] 2.1 Implement data export function\n- [ ] 2.2 Add CSV formatting utilities\n```\n\nReference specs for what needs to be built, design for how to build it.\nEach task should be verifiable - you know when it's done.\n",
+  "context": "Tech stack: JavaScript (ES6 Modules), HTML5 Canvas, CSS3\n\nCRITICAL PROJECT RULES:\n1. Zero Tolerance for Deviation\n   - NEVER assume a working prototype is \"good enough\" if it deviates from the agreed-upon plan or spec.\n   - ALWAYS flag deviations immediately.\n   - If code disagrees with spec, STOP and ask: \"Align Code to Spec OR Align Spec to Code?\"\n\n2. Verification is Mandatory\n   - Verification steps in OpenSpec workflow are REQUIRED.\n   - Never ask to skip verification.\n   - Always perform steps defined in tasks.md.\n\n3. Screenshot Protocol (BINDING)\n   - Phase 1: Analyze & Acknowledge (Describe what you see first).\n   - Phase 2: Confirm Understanding (Wait for user confirmation).\n   - Phase 3: Action (Proceed only after confirmation).\n   - FAILURE CONDITION: If you cannot see/read the screenshot, STOP IMMEDIATELY.",
+  "template": "## 1. <!-- Task Group Name -->\n\n- [ ] 1.1 <!-- Task description -->\n- [ ] 1.2 <!-- Task description -->\n\n## 2. <!-- Task Group Name -->\n\n- [ ] 2.1 <!-- Task description -->\n- [ ] 2.2 <!-- Task description -->\n",
+  "dependencies": [
+    {
+      "id": "specs",
+      "done": true,
+      "path": "specs/**/*.md",
+      "description": "Detailed specifications for the change"
+    },
+    {
+      "id": "design",
+      "done": true,
+      "path": "design.md",
+      "description": "Technical design document with implementation details"
+    }
+  ],
+  "unlocks": []
+}

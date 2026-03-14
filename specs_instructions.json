@@ -1,0 +1,22 @@
+﻿{
+  "changeName": "hangar-ui",
+  "artifactId": "specs",
+  "schemaName": "spec-driven",
+  "changeDir": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui",
+  "outputPath": "specs/**/*.md",
+  "description": "Detailed specifications for the change",
+  "instruction": "Create specification files that define WHAT the system should do.\n\nCreate one spec file per capability listed in the proposal's Capabilities section.\n- New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).\n- Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.\n\nDelta operations (use ## headers):\n- **ADDED Requirements**: New capabilities\n- **MODIFIED Requirements**: Changed behavior - MUST include full updated content\n- **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**\n- **RENAMED Requirements**: Name changes only - use FROM:/TO: format\n\nFormat requirements:\n- Each requirement: `### Requirement: <name>` followed by description\n- Use SHALL/MUST for normative requirements (avoid should/may)\n- Each scenario: `#### Scenario: <name>` with WHEN/THEN format\n- **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.\n- Every requirement MUST have at least one scenario.\n\nMODIFIED requirements workflow:\n1. Locate the existing requirement in openspec/specs/<capability>/spec.md\n2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)\n3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior\n4. Ensure header text matches exactly (whitespace-insensitive)\n\nCommon pitfall: Using MODIFIED with partial content loses detail at archive time.\nIf adding new concerns without changing existing behavior, use ADDED instead.\n\nExample:\n```\n## ADDED Requirements\n\n### Requirement: User can export data\nThe system SHALL allow users to export their data in CSV format.\n\n#### Scenario: Successful export\n- **WHEN** user clicks \"Export\" button\n- **THEN** system downloads a CSV file with all user data\n\n## REMOVED Requirements\n\n### Requirement: Legacy export\n**Reason**: Replaced by new export system\n**Migration**: Use new export endpoint at /api/v2/export\n```\n\nSpecs should be testable - each scenario is a potential test case.\n",
+  "context": "Tech stack: JavaScript (ES6 Modules), HTML5 Canvas, CSS3\n\nCRITICAL PROJECT RULES:\n1. Zero Tolerance for Deviation\n   - NEVER assume a working prototype is \"good enough\" if it deviates from the agreed-upon plan or spec.\n   - ALWAYS flag deviations immediately.\n   - If code disagrees with spec, STOP and ask: \"Align Code to Spec OR Align Spec to Code?\"\n\n2. Verification is Mandatory\n   - Verification steps in OpenSpec workflow are REQUIRED.\n   - Never ask to skip verification.\n   - Always perform steps defined in tasks.md.\n\n3. Screenshot Protocol (BINDING)\n   - Phase 1: Analyze & Acknowledge (Describe what you see first).\n   - Phase 2: Confirm Understanding (Wait for user confirmation).\n   - Phase 3: Action (Proceed only after confirmation).\n   - FAILURE CONDITION: If you cannot see/read the screenshot, STOP IMMEDIATELY.",
+  "template": "## ADDED Requirements\n\n### Requirement: <!-- requirement name -->\n<!-- requirement text -->\n\n#### Scenario: <!-- scenario name -->\n- **WHEN** <!-- condition -->\n- **THEN** <!-- expected outcome -->\n",
+  "dependencies": [
+    {
+      "id": "proposal",
+      "done": true,
+      "path": "proposal.md",
+      "description": "Initial proposal document outlining the change"
+    }
+  ],
+  "unlocks": [
+    "tasks"
+  ]
+}

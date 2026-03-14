@@ -13,6 +13,9 @@ DataStore.load().then(() => {
     // Seed runtime constants from data
     CONFIG.INTRA_BURST_INTERVAL_MS = DataStore.getConstant('IntraBurstInterval', 50);
 
+    // Development hack: stash population
+    PlayerProfile.debugInitAllItems(DataStore);
+
     const appManager = new AppManager(canvas, DataStore);
 
     appManager.switchScene(new BaseScene());

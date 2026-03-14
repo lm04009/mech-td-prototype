@@ -1,0 +1,120 @@
+﻿{
+  "changeName": "hangar-ui",
+  "changeDir": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui",
+  "schemaName": "spec-driven",
+  "contextFiles": {
+    "proposal": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui\\proposal.md",
+    "specs": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui\\specs\\**\\*.md",
+    "design": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui\\design.md",
+    "tasks": "C:\\000 move\\Projects\\TDFM\\mech-td-prototype\\openspec\\changes\\hangar-ui\\tasks.md"
+  },
+  "progress": {
+    "total": 20,
+    "complete": 20,
+    "remaining": 0
+  },
+  "tasks": [
+    {
+      "id": "1",
+      "description": "1.1 Extract core stat calculation logic (Total Weight, Power Output, Move Efficiency, Evasion, etc.) from `Mech.js` into a shared utility function so both engine and UI can reference it.",
+      "done": true
+    },
+    {
+      "id": "2",
+      "description": "1.2 Update `PlayerProfile.js` to parse `parts.json` and `weapons.json` at initialization and populate the `inventory` (stash) with one of every valid item to facilitate testing.",
+      "done": true
+    },
+    {
+      "id": "3",
+      "description": "2.1 Update `BaseScene.js` to listen for an LMB click specifically on the Hangar Console entity.",
+      "done": true
+    },
+    {
+      "id": "4",
+      "description": "2.2 Upon click, emit an event to `UIManager` to open the `HangarScreen` and pause player movement/interactions in the BaseScene.",
+      "done": true
+    },
+    {
+      "id": "5",
+      "description": "2.3 Create `src/ui/screens/HangarScreen.js` (extending `BaseScreen`) with a basic `mount` DOM structure containing the 2-column layout.",
+      "done": true
+    },
+    {
+      "id": "6",
+      "description": "2.4 Create the CSS styles (`.hangar-overlay`, `.visual-pane`, `.engineering-pane`, `.stats-panel`, etc.) according to the agreed upon design.",
+      "done": true
+    },
+    {
+      "id": "7",
+      "description": "3.1 In `HangarScreen.js`, establish a \"working state\" locally by deep-cloning `PlayerProfile.loadout` and `inventory`.",
+      "done": true
+    },
+    {
+      "id": "8",
+      "description": "3.2 Implement the \"Current Loadout\" list rendering to show all 4 core parts and 4 weapon slots based on the working state.",
+      "done": true
+    },
+    {
+      "id": "9",
+      "description": "3.3 Implement click listeners on these slot list items to set the \"active slot filter\".",
+      "done": true
+    },
+    {
+      "id": "10",
+      "description": "3.4 Wire up the Visual Preview section on the left to display the currently equipped \"working state\" parts.",
+      "done": true
+    },
+    {
+      "id": "11",
+      "description": "4.1 Based on the currently clicked loadout slot, filter the working `inventory` stash down to valid matching items (e.g., matching `partType` or Grip/Shoulder).",
+      "done": true
+    },
+    {
+      "id": "12",
+      "description": "4.2 Render this filtered list in the \"All Owned Items\" panel.",
+      "done": true
+    },
+    {
+      "id": "13",
+      "description": "4.3 Add hover listeners to the stash items; on hover, recalculate the \"Projected\" stat column in the Real-Time Stats panel against the working loadout.",
+      "done": true
+    },
+    {
+      "id": "14",
+      "description": "5.1 Implement the continuous validation logic: check that all 4 core parts are equipped.",
+      "done": true
+    },
+    {
+      "id": "15",
+      "description": "5.2 Add validation logic: check that at least 1 weapon is equipped.",
+      "done": true
+    },
+    {
+      "id": "16",
+      "description": "5.3 Add validation logic: check that calculated Total Weight $\\le$ Total Power Output.",
+      "done": true
+    },
+    {
+      "id": "17",
+      "description": "5.4 If any constraint fails, disable the \"Deploy\" button and render the corresponding error message into the stat panel footer.",
+      "done": true
+    },
+    {
+      "id": "18",
+      "description": "6.1 Implement click behavior on stash items to actually execute the swap in the working state (moving equipped part back to inventory, bringing clicked part to loadout).",
+      "done": true
+    },
+    {
+      "id": "19",
+      "description": "6.2 Wire the \"Deploy\" button to overwrite `PlayerProfile` singletons with the working state and unmount the screen.",
+      "done": true
+    },
+    {
+      "id": "20",
+      "description": "6.3 Ensure that when returning to the `BaseScene`, the player's mech is instantiated properly using the new loadout.",
+      "done": true
+    }
+  ],
+  "state": "all_done",
+  "instruction": "All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving."
+}

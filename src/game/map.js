@@ -120,8 +120,6 @@ export class GameMap {
             }
         }
 
-        // 5. Generate Lanes (Dynamic)
-        this.generateLanes(cx, cy);
     }
 
     generateLanes(cx, cy) {

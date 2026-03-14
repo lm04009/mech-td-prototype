@@ -1,16 +1,4 @@
-# base-hub Specification
-
-## Requirements
-
-### Requirement: Non-Combat Environment
-The BaseScene MUST provide a safe, navigable physical environment using the core engine grid and renderer.
-
-#### Scenario: Entering BaseScene
-- **WHEN** BaseScene is the active scene
-- **THEN** the camera MUST follow the player Mech
-- **AND** click-to-move pathfinding MUST function correctly
-- **AND** weapon firing/cooldowns MUST be disabled
-- **AND** the `EncounterManager` MUST not be active (no waves or enemy spawning).
+## MODIFIED Requirements
 
 ### Requirement: Interactable Stations
 The BaseScene MUST support interactable entities that act as UI triggers.
