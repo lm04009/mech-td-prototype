@@ -2,7 +2,7 @@ import { GameState } from './GameState.js';
 import { EventBus } from '../engine/EventBus.js';
 import { EntityManager } from './EntityManager.js';
 import { GameMap, TERRAIN } from './map.js';
-import { Mech } from './Mech.js';
+import { Mech } from './mech.js';
 import { Camera } from './camera.js';
 import { Pathfinder } from '../engine/Pathfinder.js';
 import { PlayerProfile } from './PlayerProfile.js';
