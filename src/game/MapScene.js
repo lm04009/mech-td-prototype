@@ -4,6 +4,7 @@ import { EntityManager } from './EntityManager.js';
 import { EncounterManager } from './EncounterManager.js';
 import { CONFIG, LEVEL_1_ENCOUNTER } from './Config.js';
 import { GameMap } from './map.js';
+import { ARENA_1 } from './maps/arena1.js';
 import { Mech } from './mech.js';
 import { Terminal } from './terminal.js';
 import { Camera } from './camera.js';
@@ -78,8 +79,9 @@ export class MapScene {
         }
 
         // 1. Map & Core Entities
-        this.map = new GameMap(this.WORLD_WIDTH_TILES, this.WORLD_HEIGHT_TILES, this.TILE_SIZE);
-        this.map.generateLanes(Math.floor(this.map.width / 2), Math.floor(this.map.height / 2));
+        this.map = new GameMap(ARENA_1.width, ARENA_1.height, ARENA_1.tileSize);
+        for (const t of ARENA_1.tiles) this.map.setTile(t.x, t.y, t.type);
+        this.map.generateLanes(ARENA_1.spawners, ARENA_1.terminalPos);
 
         const cx = (this.map.width * this.TILE_SIZE) / 2;
         const cy = (this.map.height * this.TILE_SIZE) / 2;
@@ -350,27 +352,6 @@ export class MapScene {
             width: this.TILE_SIZE,
             height: this.TILE_SIZE
         };
-        const playerCircle = {
-            x: this.mech.x,
-            y: this.mech.y,
-            radius: this.mech.size / 2
-        };
-
-        // Use Collision helper if imported, or just simple check?
-        // Game.js doesn't import Collision yet. 
-        // Let's add import or just simple AABB/Circle check here since it's one-off?
-        // Better to import Collision for consistency.
-
-        // Assuming we add import. 
-        // But if I don't add import in this step, it breaks.
-        // Let's do simple check here to save an import if it's the only usage?
-        // No, use Collision.js. I will add import in a separate step or same step if possible.
-        // replace_file_content can't do non-contiguous.
-        // I will use Collision.checkCircleRect fully qualified if imported.
-        // Need to add import first? 
-        // Let's just implement the logic assuming Collision is imported, then add import.
-
-        // Actually, let's just do a quick dist check. 
         // Box center
         const cx = tileRect.x + this.TILE_SIZE / 2;
         const cy = tileRect.y + this.TILE_SIZE / 2;

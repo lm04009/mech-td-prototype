@@ -1,7 +1,8 @@
 import { GameState } from './GameState.js';
 import { EventBus } from '../engine/EventBus.js';
 import { EntityManager } from './EntityManager.js';
-import { GameMap, TERRAIN } from './map.js';
+import { GameMap } from './map.js';
+import { HUB } from './maps/hub.js';
 import { Mech } from './mech.js';
 import { Camera } from './camera.js';
 import { Pathfinder } from '../engine/Pathfinder.js';
@@ -71,33 +72,20 @@ export class BaseScene {
             this.app.uiManager.hideScreen();
         }
 
-        this.map = new GameMap(this.WORLD_WIDTH_TILES, this.WORLD_HEIGHT_TILES, this.TILE_SIZE);
-        const cx = Math.floor(this.map.width / 2);
-        const cy = Math.floor(this.map.height / 2);
+        this.map = new GameMap(HUB.width, HUB.height, HUB.tileSize);
+        for (const t of HUB.tiles) this.map.setTile(t.x, t.y, t.type);
 
-        // Build a closed 20x20 room
-        const roomSize = 10;
-        for (let x = 0; x < this.map.width; x++) {
-            for (let y = 0; y < this.map.height; y++) {
-                if (x < cx - roomSize || x > cx + roomSize || y < cy - roomSize || y > cy + roomSize) {
-                    this.map.setTile(x, y, TERRAIN.WALL);
-                } else if (x === cx - roomSize || x === cx + roomSize || y === cy - roomSize || y === cy + roomSize) {
-                    this.map.setTile(x, y, TERRAIN.WALL);
-                } else {
-                    this.map.setTile(x, y, TERRAIN.GROUND);
-                }
-            }
-        }
-
-        const centerWorldX = cx * this.TILE_SIZE;
-        const centerWorldY = cy * this.TILE_SIZE;
+        const cx = Math.floor(HUB.width / 2);
+        const cy = Math.floor(HUB.height / 2);
+        const centerWorldX = cx * HUB.tileSize;
+        const centerWorldY = cy * HUB.tileSize;
 
         this.mech = new Mech(centerWorldX, centerWorldY, this.eventBus, this.dataStore, PlayerProfile.loadout);
         this.mech.weaponsPowered = false;
 
         this.camera = new Camera(
-            this.map.width * this.TILE_SIZE,
-            this.map.height * this.TILE_SIZE,
+            HUB.width * HUB.tileSize,
+            HUB.height * HUB.tileSize,
             this.canvas.width,
             this.canvas.height
         );
@@ -107,25 +95,21 @@ export class BaseScene {
         this.lmbWasDown = false;
         this.clickRings = [];
 
-        // Hangar console interactable
-        this.interactables.push({
-            id: 'hangar',
-            name: 'Hangar Console',
-            worldX: (cx - 3) * this.TILE_SIZE,
-            worldY: (cy - 3) * this.TILE_SIZE,
-            radius: 80,
-            onInteract: () => this.openHangarUI()
-        });
+        const interactHandlers = {
+            hangar: () => this.openHangarUI(),
+            map_device: () => this.startMission(),
+        };
 
-        // Map Device interactable
-        this.interactables.push({
-            id: 'map_device',
-            name: 'Map Device',
-            worldX: (cx + 3) * this.TILE_SIZE,
-            worldY: (cy - 3) * this.TILE_SIZE,
-            radius: 80,
-            onInteract: () => this.startMission()
-        });
+        for (const def of HUB.interactables) {
+            this.interactables.push({
+                id: def.id,
+                name: def.name,
+                worldX: def.gridX * HUB.tileSize,
+                worldY: def.gridY * HUB.tileSize,
+                radius: def.radius,
+                onInteract: interactHandlers[def.id],
+            });
+        }
     }
 
     openHangarUI() {

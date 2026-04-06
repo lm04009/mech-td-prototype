@@ -1,13 +1,7 @@
 import { LaneGenerator } from './map/LaneGenerator.js';
 import { TERRAIN } from './Terrain.js';
 
-export { TERRAIN }; // Re-export for compatibility if needed, or just remove export if unused externally (Game.js uses it?) 
-// Game.js generally imports GameMap. But maybe imports TERRAIN from map.js?
-// Inspecting Game.js imports... it didn't import TERRAIN explicitly in my view earlier.
-// Wait, isBuildable used TERRAIN.SOCKET.
-// LaneGenerator imports TERRAIN.
-// check imports in other files?
-// Let's re-export it to be safe.
+export { TERRAIN };
 
 
 export class GameMap {
@@ -16,8 +10,9 @@ export class GameMap {
         this.height = height;
         this.tileSize = tileSize;
         this.tiles = [];
-        this.towers = []; // Track occupied towers [y][x]
+        this.towers = [];
         this.lanes = {};
+        this.pendingSockets = [];
 
         // Initialize with Ground
         for (let y = 0; y < height; y++) {
@@ -30,12 +25,6 @@ export class GameMap {
             this.tiles.push(row);
             this.towers.push(towerRow);
         }
-
-        // Setup Test Level
-        this.setupTestLevel();
-
-        // Pending Sockets Queue (for deferred spawning)
-        this.pendingSockets = [];
     }
 
     update(dt, player) {
@@ -79,71 +68,17 @@ export class GameMap {
         }
     }
 
-    setupTestLevel() {
-        const cx = Math.floor(this.width / 2);
-        const cy = Math.floor(this.height / 2);
-
-        // 1. Clear Center (Safe Zone)
-        // (Default is Ground)
-
-        // 2. Build "Arena" Walls (Inner Ring)
-        const innerRadius = 8;
-        for (let x = cx - innerRadius; x <= cx + innerRadius; x++) {
-            this.setTile(x, cy - innerRadius, TERRAIN.WALL);
-            this.setTile(x, cy + innerRadius, TERRAIN.WALL);
-        }
-        for (let y = cy - innerRadius; y <= cy + innerRadius; y++) {
-            this.setTile(cx - innerRadius, y, TERRAIN.WALL);
-            this.setTile(cx + innerRadius, y, TERRAIN.WALL);
-        }
-
-        // 3. Open Gates (Gap in Walls)
-        const GATES = [
-            { x: cx, y: cy - innerRadius }, // N
-            { x: cx, y: cy + innerRadius }, // S
-            { x: cx + innerRadius, y: cy }, // E
-            { x: cx - innerRadius, y: cy }, // W
-        ];
-        // Clear 3-wide gaps
-        for (let g of GATES) {
-            for (let i = -1; i <= 1; i++) {
-                if (g.x === cx) this.setTile(g.x + i, g.y, TERRAIN.GROUND);
-                else this.setTile(g.x, g.y + i, TERRAIN.GROUND);
-            }
-        }
-
-        // 4. Outer Hazards (Water/Walls)
-        // Add some random water pools to test pathfinding
-        for (let x = cx - 15; x < cx - 10; x++) {
-            for (let y = cy - 5; y < cy + 5; y++) {
-                this.setTile(x, y, TERRAIN.WATER);
-            }
-        }
-
-    }
-
-    generateLanes(cx, cy) {
-        // center is target
-        const center = { x: cx, y: cy };
+    generateLanes(spawners, terminalPos) {
+        const center = terminalPos;
         const TS = this.tileSize;
-
-        // Define Spawners
-        const SPAWNERS = [
-            { id: 'NORTH', x: cx, y: 2 },
-            { id: 'SOUTH', x: cx, y: this.height - 3 },
-            { id: 'EAST', x: this.width - 3, y: cy },
-            { id: 'WEST', x: 2, y: cy }, // Far West
-            { id: 'CUSTOM', x: 35, y: 35 } // User Request (SE)
-        ];
 
         this.lanes = {};
 
         const generator = new LaneGenerator(this);
 
-        for (const spawner of SPAWNERS) {
+        for (const spawner of spawners) {
             const laneObj = generator.generateLane(spawner.id, spawner, center);
             if (laneObj) {
-                // Convert Path to World
                 const worldPath = laneObj.path.map(p => ({
                     x: p.x * TS + TS / 2,
                     y: p.y * TS + TS / 2
@@ -152,13 +87,14 @@ export class GameMap {
                 this.lanes[spawner.id] = {
                     id: spawner.id,
                     path: worldPath,
-                    sockets: laneObj.sockets // Grid Coords
+                    sockets: laneObj.sockets
                 };
 
-                // Mark Sockets on Map as HIDDEN initially
                 for (const s of laneObj.sockets) {
                     this.setTile(s.x, s.y, TERRAIN.HIDDEN_SOCKET);
                 }
+            } else {
+                console.warn(`GameMap.generateLanes: no path found for spawner '${spawner.id}'`);
             }
         }
     }

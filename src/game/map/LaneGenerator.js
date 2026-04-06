@@ -134,10 +134,6 @@ export class LaneGenerator {
         // 1. Bounds & Terrain
         if (tile.x < 0 || tile.x >= this.width || tile.y < 0 || tile.y >= this.height) return false;
 
-        const type = this.map.getTileAt(tile.x * this.map.tileSize, tile.y * this.map.tileSize); // map.getTileAt takes WORLD coords
-        // Actually map.js internal storage is grid based. Let's use direct access if possible or convert.
-        // Looking at map.js: tiles[y][x].
-
         if (this.map.tiles[tile.y][tile.x] !== TERRAIN.GROUND) return false;
 
         // 2. Avoid Path (Impassable constraint means Lane shouldn't be blocked by it, 

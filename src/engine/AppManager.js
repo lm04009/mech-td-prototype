@@ -85,8 +85,6 @@ export class AppManager {
     }
 
     draw() {
-        // We let the scene clear the canvas or draw a background
-        // Wait, maybe the app manager clears it? Let's leave it to the scene or clear here.
         this.ctx.fillStyle = '#222';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
